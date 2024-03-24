@@ -52,7 +52,7 @@ var _ = Describe("Builder", func() {
 						Message:            "foo message",
 					},
 					{
-						Type:               druidv1alpha1.ConditionTypeReady,
+						Type:               druidv1alpha1.ConditionTypeQuorumReached,
 						LastUpdateTime:     metav1.NewTime(oldConditionTime),
 						LastTransitionTime: metav1.NewTime(oldConditionTime),
 						Status:             druidv1alpha1.ConditionFalse,
@@ -60,12 +60,20 @@ var _ = Describe("Builder", func() {
 						Message:            "bar message",
 					},
 					{
-						Type:               druidv1alpha1.ConditionTypeBackupReady,
+						Type:               druidv1alpha1.ConditionTypeFullSnapshotBackupReady,
 						LastUpdateTime:     metav1.NewTime(oldConditionTime),
 						LastTransitionTime: metav1.NewTime(oldConditionTime),
 						Status:             druidv1alpha1.ConditionTrue,
-						Reason:             "foobar reason",
-						Message:            "foobar message",
+						Reason:             "full foobar reason",
+						Message:            "full foobar message",
+					},
+					{
+						Type:               druidv1alpha1.ConditionTypeDeltaSnapshotBackupReady,
+						LastUpdateTime:     metav1.NewTime(oldConditionTime),
+						LastTransitionTime: metav1.NewTime(oldConditionTime),
+						Status:             druidv1alpha1.ConditionFalse,
+						Reason:             "delta foobar reason",
+						Message:            "delta foobar message",
 					},
 				}
 
@@ -81,7 +89,7 @@ var _ = Describe("Builder", func() {
 						ConMessage: "new message",
 					},
 					&result{
-						ConType:    druidv1alpha1.ConditionTypeReady,
+						ConType:    druidv1alpha1.ConditionTypeQuorumReached,
 						ConStatus:  druidv1alpha1.ConditionTrue,
 						ConReason:  "new reason",
 						ConMessage: "new message",
@@ -100,7 +108,7 @@ var _ = Describe("Builder", func() {
 						"Message":            Equal("new message"),
 					}),
 					MatchFields(IgnoreExtras, Fields{
-						"Type":               Equal(druidv1alpha1.ConditionTypeReady),
+						"Type":               Equal(druidv1alpha1.ConditionTypeQuorumReached),
 						"LastUpdateTime":     Equal(metav1.NewTime(now)),
 						"LastTransitionTime": Equal(metav1.NewTime(now)),
 						"Status":             Equal(druidv1alpha1.ConditionTrue),
@@ -121,7 +129,7 @@ var _ = Describe("Builder", func() {
 						ConMessage: "new message",
 					},
 					&result{
-						ConType:    druidv1alpha1.ConditionTypeReady,
+						ConType:    druidv1alpha1.ConditionTypeQuorumReached,
 						ConStatus:  druidv1alpha1.ConditionTrue,
 						ConReason:  "new reason",
 						ConMessage: "new message",
@@ -140,7 +148,7 @@ var _ = Describe("Builder", func() {
 						"Message":            Equal("new message"),
 					}),
 					MatchFields(IgnoreExtras, Fields{
-						"Type":               Equal(druidv1alpha1.ConditionTypeReady),
+						"Type":               Equal(druidv1alpha1.ConditionTypeQuorumReached),
 						"LastUpdateTime":     Equal(metav1.NewTime(now)),
 						"LastTransitionTime": Equal(metav1.NewTime(now)),
 						"Status":             Equal(druidv1alpha1.ConditionTrue),

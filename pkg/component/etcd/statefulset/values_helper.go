@@ -51,7 +51,6 @@ func GenerateValues(
 		Namespace:                 etcd.Namespace,
 		OwnerReference:            etcd.GetAsOwnerReference(),
 		Replicas:                  etcd.Spec.Replicas,
-		StatusReplicas:            etcd.Status.Replicas,
 		Annotations:               utils.MergeStringMaps(checksumAnnotations, etcd.Spec.Annotations),
 		Labels:                    etcd.GetDefaultLabels(),
 		AdditionalPodLabels:       etcd.Spec.Labels,

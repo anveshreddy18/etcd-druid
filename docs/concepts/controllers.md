@@ -68,7 +68,7 @@ Status fields of the `Etcd` resource which correspond to the `StatefulSet` like 
 
 - Cluster Membership: The controller updates the information about etcd cluster membership like `Role`, `Status`, `Reason`, `LastTransitionTime` and identifying information like the `Name` and `ID`. For the `Status` field, the member is checked for the *Ready* condition, where the member can be in `Ready`, `NotReady` and `Unknown` statuses.
 
-- Condition: The controller updates the `Conditions` field which holds the latest information of the `Etcd`'s state. The condition checks that are performed are `AllMembersCheck`, `ReadyCheck` and `BackupReadyCheck`. The first two of these checks make use of the `EtcdMemberStatus` to update `Conditions` with information about the members, and the last corresponds to the status of the backup.
+- Condition: The controller updates the `Conditions` field which holds the latest information of the `Etcd`'s state. The condition checks that are performed are `AllMembersCheck`, `QuorumReachedCheck` and `BackupReadyCheck`. The first two of these checks make use of the `EtcdMemberStatus` to update `Conditions` with information about the members, and the last corresponds to the status of the backup.
 
 To reflect changes that occur in the `Statefulset` status in the `Etcd` resource, the *custodian controller* keeps a watch on the `Statefulset`.
 

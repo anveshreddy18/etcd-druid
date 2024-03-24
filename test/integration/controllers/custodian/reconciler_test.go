@@ -75,36 +75,6 @@ var _ = Describe("Custodian Controller", func() {
 				}, timeout, pollingInterval).Should(BeNil())
 			})
 
-			It("should update value of Etcd.Status.ReadyReplicas to value of Statefulset.Status.ReadyReplicas", func() {
-				sts.Status.Replicas = 1
-				sts.Status.ReadyReplicas = 1
-				sts.Status.ObservedGeneration = 2
-				Expect(k8sClient.Status().Update(ctx, sts)).To(Succeed())
-
-				// wait for sts status update to succeed
-				Eventually(func() error {
-					if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(sts), sts); err != nil {
-						return err
-					}
-					if sts.Status.ReadyReplicas != 1 {
-						return fmt.Errorf("statefulset ReadyReplicas should be equal to 1")
-					}
-					return nil
-				}, timeout, pollingInterval).Should(Succeed())
-
-				// Wait for desired ReadyReplicas value to be reflected in etcd status
-				Eventually(func() error {
-					if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(instance), instance); err != nil {
-						return err
-					}
-
-					if int(instance.Status.ReadyReplicas) != 1 {
-						return fmt.Errorf("etcd ready replicas should be equal to 1")
-					}
-					return nil
-				}, timeout, pollingInterval).Should(BeNil())
-			})
-
 			It("should mark statefulset status not ready when no ready replicas in statefulset", func() {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(instance), sts)
 				Expect(err).ToNot(HaveOccurred())
@@ -122,20 +92,6 @@ var _ = Describe("Custodian Controller", func() {
 
 					if sts.Status.ReadyReplicas > 0 {
 						return fmt.Errorf("no readyreplicas of statefulset should exist at this point")
-					}
-
-					return nil
-				}, timeout, pollingInterval).Should(BeNil())
-
-				// wait for etcd status to reflect the change in ReadyReplicas
-				Eventually(func() error {
-					err = k8sClient.Get(ctx, client.ObjectKeyFromObject(instance), instance)
-					if err != nil {
-						return err
-					}
-
-					if instance.Status.ReadyReplicas > 0 {
-						return fmt.Errorf("ReadyReplicas should be zero in ETCD instance")
 					}
 
 					return nil

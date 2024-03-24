@@ -385,7 +385,7 @@ func clusterScaledUpToMultiNode(val *Values, sts *appsv1.StatefulSet) bool {
 			(metav1.HasAnnotation(sts.ObjectMeta, ScaleToMultiNodeAnnotationKey) &&
 				(sts.Status.UpdatedReplicas < *sts.Spec.Replicas || sts.Status.AvailableReplicas < sts.Status.UpdatedReplicas))
 	}
-	return val.Replicas > 1 && val.StatusReplicas == 1
+	return val.Replicas > 1 && sts.Status.CurrentReplicas == 1
 }
 
 func (c *component) createOrPatch(ctx context.Context, sts *appsv1.StatefulSet, replicas int32, preserveAnnotations bool) error {

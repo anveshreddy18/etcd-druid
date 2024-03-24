@@ -12,14 +12,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type readyCheck struct{}
+type quorumReachedCheck struct{}
 
-func (r *readyCheck) Check(_ context.Context, _ logr.Logger, etcd druidv1alpha1.Etcd) Result {
+func (r *quorumReachedCheck) Check(_ context.Context, _ logr.Logger, etcd druidv1alpha1.Etcd) Result {
 
 	// TODO: remove this case as soon as leases are completely supported by etcd-backup-restore
 	if len(etcd.Status.Members) == 0 {
 		return &result{
-			conType: druidv1alpha1.ConditionTypeReady,
+			conType: druidv1alpha1.ConditionTypeQuorumReached,
 			status:  druidv1alpha1.ConditionUnknown,
 			reason:  "NoMembersInStatus",
 			message: "Cannot determine readiness since status has no members",
@@ -38,25 +38,27 @@ func (r *readyCheck) Check(_ context.Context, _ logr.Logger, etcd druidv1alpha1.
 		}
 		readyMembers++
 	}
+	var message string
+	// build the message string here in the form of x/y members ready: <member-ids>; z/y members unready: <member-ids>
 
 	if readyMembers < quorum {
 		return &result{
-			conType: druidv1alpha1.ConditionTypeReady,
+			conType: druidv1alpha1.ConditionTypeQuorumReached,
 			status:  druidv1alpha1.ConditionFalse,
-			reason:  "QuorumLost",
-			message: "The majority of ETCD members is not ready",
+			reason:  "MajorityMembersUnready",
+			message: message,
 		}
 	}
 
 	return &result{
-		conType: druidv1alpha1.ConditionTypeReady,
+		conType: druidv1alpha1.ConditionTypeQuorumReached,
 		status:  druidv1alpha1.ConditionTrue,
-		reason:  "Quorate",
-		message: "The majority of ETCD members is ready",
+		reason:  "MajorityMembersReady",
+		message: message,
 	}
 }
 
-// ReadyCheck returns a check for the "Ready" condition.
-func ReadyCheck(_ client.Client) Checker {
-	return &readyCheck{}
+// QuorumReachedCheck returns a check for the "QuorumReached" condition.
+func QuorumReachedCheck(_ client.Client) Checker {
+	return &quorumReachedCheck{}
 }

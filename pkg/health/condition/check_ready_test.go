@@ -15,7 +15,7 @@ import (
 	"github.com/go-logr/logr"
 )
 
-var _ = Describe("ReadyCheck", func() {
+var _ = Describe("QuorumReachedCheck", func() {
 	Describe("#Check", func() {
 		var (
 			readyMember, notReadyMember, unknownMember druidv1alpha1.EtcdMemberStatus
@@ -46,11 +46,11 @@ var _ = Describe("ReadyCheck", func() {
 						},
 					},
 				}
-				check := ReadyCheck(nil)
+				check := QuorumReachedCheck(nil)
 
 				result := check.Check(context.TODO(), logger, etcd)
 
-				Expect(result.ConditionType()).To(Equal(druidv1alpha1.ConditionTypeReady))
+				Expect(result.ConditionType()).To(Equal(druidv1alpha1.ConditionTypeQuorumReached))
 				Expect(result.Status()).To(Equal(druidv1alpha1.ConditionTrue))
 			})
 
@@ -64,11 +64,11 @@ var _ = Describe("ReadyCheck", func() {
 						},
 					},
 				}
-				check := ReadyCheck(nil)
+				check := QuorumReachedCheck(nil)
 
 				result := check.Check(context.TODO(), logger, etcd)
 
-				Expect(result.ConditionType()).To(Equal(druidv1alpha1.ConditionTypeReady))
+				Expect(result.ConditionType()).To(Equal(druidv1alpha1.ConditionTypeQuorumReached))
 				Expect(result.Status()).To(Equal(druidv1alpha1.ConditionTrue))
 			})
 
@@ -82,11 +82,11 @@ var _ = Describe("ReadyCheck", func() {
 						},
 					},
 				}
-				check := ReadyCheck(nil)
+				check := QuorumReachedCheck(nil)
 
 				result := check.Check(context.TODO(), logger, etcd)
 
-				Expect(result.ConditionType()).To(Equal(druidv1alpha1.ConditionTypeReady))
+				Expect(result.ConditionType()).To(Equal(druidv1alpha1.ConditionTypeQuorumReached))
 				Expect(result.Status()).To(Equal(druidv1alpha1.ConditionTrue))
 			})
 
@@ -100,13 +100,13 @@ var _ = Describe("ReadyCheck", func() {
 						},
 					},
 				}
-				check := ReadyCheck(nil)
+				check := QuorumReachedCheck(nil)
 
 				result := check.Check(context.TODO(), logger, etcd)
 
-				Expect(result.ConditionType()).To(Equal(druidv1alpha1.ConditionTypeReady))
+				Expect(result.ConditionType()).To(Equal(druidv1alpha1.ConditionTypeQuorumReached))
 				Expect(result.Status()).To(Equal(druidv1alpha1.ConditionFalse))
-				Expect(result.Reason()).To(Equal("QuorumLost"))
+				Expect(result.Reason()).To(Equal("MajorityMembersUnready"))
 			})
 		})
 
@@ -117,11 +117,11 @@ var _ = Describe("ReadyCheck", func() {
 						Members: []druidv1alpha1.EtcdMemberStatus{},
 					},
 				}
-				check := ReadyCheck(nil)
+				check := QuorumReachedCheck(nil)
 
 				result := check.Check(context.TODO(), logger, etcd)
 
-				Expect(result.ConditionType()).To(Equal(druidv1alpha1.ConditionTypeReady))
+				Expect(result.ConditionType()).To(Equal(druidv1alpha1.ConditionTypeQuorumReached))
 				Expect(result.Status()).To(Equal(druidv1alpha1.ConditionUnknown))
 				Expect(result.Reason()).To(Equal("NoMembersInStatus"))
 			})

@@ -563,10 +563,6 @@ status:
     lastTransitionTime:         "2020-11-10T12:48:01Z"
     reason: FullBackupSucceeded # FullBackupSucceeded|IncrementalBackupSucceeded|FullBackupFailed|IncrementalBackupFailed
   ...
-  clusterSize: 3
-  ...
-  replicas: 3
-  ...
   members:
   - name: etcd-main-0          # member pod name
     id: 272e204152             # member Id

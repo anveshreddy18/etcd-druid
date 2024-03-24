@@ -93,29 +93,11 @@ func (r *Reconciler) updateEtcdStatus(ctx context.Context, logger logr.Logger, e
 	logger.Info("Updating etcd status with statefulset information", "namespace", etcd.Namespace, "name", etcd.Name)
 
 	if sts != nil {
-		etcd.Status.Etcd = &druidv1alpha1.CrossVersionObjectReference{
-			APIVersion: sts.APIVersion,
-			Kind:       sts.Kind,
-			Name:       sts.Name,
-		}
-
 		ready, _ := utils.IsStatefulSetReady(etcd.Spec.Replicas, sts)
-
-		// To be changed once we have multiple replicas.
-		etcd.Status.CurrentReplicas = sts.Status.CurrentReplicas
-		etcd.Status.ReadyReplicas = sts.Status.ReadyReplicas
-		etcd.Status.UpdatedReplicas = sts.Status.UpdatedReplicas
-		etcd.Status.Replicas = sts.Status.CurrentReplicas
 		etcd.Status.Ready = &ready
-		logger.Info("ETCD status updated for statefulset", "namespace", etcd.Namespace, "name", etcd.Name,
-			"currentReplicas", sts.Status.CurrentReplicas, "readyReplicas", sts.Status.ReadyReplicas, "updatedReplicas", sts.Status.UpdatedReplicas)
+		logger.Info("ETCD status updated for statefulset", "namespace", etcd.Namespace, "name", etcd.Name, "ready", ready)
 	} else {
-		etcd.Status.CurrentReplicas = 0
-		etcd.Status.ReadyReplicas = 0
-		etcd.Status.UpdatedReplicas = 0
-
 		etcd.Status.Ready = pointer.Bool(false)
 	}
-
 	return r.Client.Status().Update(ctx, etcd)
 }

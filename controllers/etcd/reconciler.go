@@ -36,7 +36,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -392,7 +391,6 @@ func (r *Reconciler) updateEtcdErrorStatus(ctx context.Context, etcd *druidv1alp
 	if result.sts != nil {
 		ready, _ := druidutils.IsStatefulSetReady(etcd.Spec.Replicas, result.sts)
 		etcd.Status.Ready = &ready
-		etcd.Status.Replicas = pointer.Int32Deref(result.sts.Spec.Replicas, 0)
 	}
 
 	return r.Client.Status().Update(ctx, etcd)
@@ -402,9 +400,7 @@ func (r *Reconciler) updateEtcdStatus(ctx context.Context, etcd *druidv1alpha1.E
 	if result.sts != nil {
 		ready, _ := druidutils.IsStatefulSetReady(etcd.Spec.Replicas, result.sts)
 		etcd.Status.Ready = &ready
-		etcd.Status.Replicas = pointer.Int32Deref(result.sts.Spec.Replicas, 0)
 	}
-	etcd.Status.ServiceName = result.svcName
 	etcd.Status.LastError = nil
 	etcd.Status.ObservedGeneration = &etcd.Generation
 
@@ -423,7 +419,5 @@ func (r *Reconciler) removeOperationAnnotation(ctx context.Context, logger logr.
 
 func (r *Reconciler) updateEtcdStatusAsNotReady(ctx context.Context, etcd *druidv1alpha1.Etcd) (*druidv1alpha1.Etcd, error) {
 	etcd.Status.Ready = nil
-	etcd.Status.ReadyReplicas = 0
-
 	return etcd, r.Client.Status().Update(ctx, etcd)
 }

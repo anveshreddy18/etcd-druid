@@ -36,7 +36,7 @@ var (
 	// ConditionChecks Checks are the registered condition checks.
 	ConditionChecks = []ConditionCheckFn{
 		condition.AllMembersCheck,
-		condition.ReadyCheck,
+		condition.QuorumReachedCheck,
 		condition.BackupReadyCheck,
 	}
 	// EtcdMemberChecks are the etcd member checks.
