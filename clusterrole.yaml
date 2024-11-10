@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: role-manager
+rules:
+# Allow creation of pods/eviction for all namespaces
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["roles"]
+  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["pods/eviction"]
+  verbs: ["create"]

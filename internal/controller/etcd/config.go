@@ -41,6 +41,7 @@ const (
 // featureList holds the feature gate names that are relevant for the Etcd Controller.
 var featureList = []featuregate.Feature{
 	features.UseEtcdWrapper,
+	features.UpdateStrategyOnDelete,
 }
 
 // Config defines the configuration for the Etcd Controller.

@@ -13,6 +13,7 @@ import (
 	"github.com/gardener/etcd-druid/internal/component"
 	ctrlutils "github.com/gardener/etcd-druid/internal/controller/utils"
 	druiderr "github.com/gardener/etcd-druid/internal/errors"
+	"github.com/gardener/etcd-druid/internal/features"
 
 	v1beta1constants "github.com/gardener/gardener/pkg/apis/core/v1beta1/constants"
 	"github.com/gardener/gardener/pkg/controllerutils"
@@ -218,7 +219,7 @@ func (r *Reconciler) getOrderedOperatorsForPreSync() []component.Kind {
 }
 
 func (r *Reconciler) getOrderedOperatorsForSync() []component.Kind {
-	return []component.Kind{
+	operators := []component.Kind{
 		component.MemberLeaseKind,
 		component.SnapshotLeaseKind,
 		component.ClientServiceKind,
@@ -230,6 +231,10 @@ func (r *Reconciler) getOrderedOperatorsForSync() []component.Kind {
 		component.RoleBindingKind,
 		component.StatefulSetKind,
 	}
+	if r.config.FeatureGates[features.UpdateStrategyOnDelete] {
+		operators = append(operators, component.PodKind)
+	}
+	return operators
 }
 
 func hasOperationAnnotationToReconcile(etcd *druidv1alpha1.Etcd) bool {

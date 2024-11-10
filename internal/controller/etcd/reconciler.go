@@ -13,6 +13,7 @@ import (
 	"github.com/gardener/etcd-druid/internal/component/configmap"
 	"github.com/gardener/etcd-druid/internal/component/memberlease"
 	"github.com/gardener/etcd-druid/internal/component/peerservice"
+	"github.com/gardener/etcd-druid/internal/component/pod"
 	"github.com/gardener/etcd-druid/internal/component/poddistruptionbudget"
 	"github.com/gardener/etcd-druid/internal/component/role"
 	"github.com/gardener/etcd-druid/internal/component/rolebinding"
@@ -20,6 +21,7 @@ import (
 	"github.com/gardener/etcd-druid/internal/component/snapshotlease"
 	"github.com/gardener/etcd-druid/internal/component/statefulset"
 	ctrlutils "github.com/gardener/etcd-druid/internal/controller/utils"
+	"github.com/gardener/etcd-druid/internal/features"
 	"github.com/gardener/etcd-druid/internal/images"
 
 	"github.com/gardener/gardener/pkg/utils/imagevector"
@@ -127,6 +129,9 @@ func createAndInitializeOperatorRegistry(client client.Client, config *Config, i
 	reg.Register(component.RoleKind, role.New(client))
 	reg.Register(component.RoleBindingKind, rolebinding.New(client))
 	reg.Register(component.StatefulSetKind, statefulset.New(client, imageVector, config.FeatureGates))
+	if config.FeatureGates[features.UpdateStrategyOnDelete] {
+		reg.Register(component.PodKind, pod.New(client))
+	}
 	return reg
 }
 

@@ -37,18 +37,20 @@ const (
 )
 
 type _resource struct {
-	client         client.Client
-	imageVector    imagevector.ImageVector
-	useEtcdWrapper bool
-	logger         logr.Logger
+	client                 client.Client
+	imageVector            imagevector.ImageVector
+	useEtcdWrapper         bool
+	logger                 logr.Logger
+	updateStrategyOnDelete bool
 }
 
 // New returns a new statefulset component operator.
 func New(client client.Client, imageVector imagevector.ImageVector, featureGates map[featuregate.Feature]bool) component.Operator {
 	return &_resource{
-		client:         client,
-		imageVector:    imageVector,
-		useEtcdWrapper: featureGates[features.UseEtcdWrapper],
+		client:                 client,
+		imageVector:            imageVector,
+		useEtcdWrapper:         featureGates[features.UseEtcdWrapper],
+		updateStrategyOnDelete: featureGates[features.UpdateStrategyOnDelete],
 	}
 }
 
@@ -225,7 +227,7 @@ func (r _resource) getExistingStatefulSet(ctx component.OperatorContext, etcdObj
 func (r _resource) createOrPatchWithReplicas(ctx component.OperatorContext, etcd *druidv1alpha1.Etcd, sts *appsv1.StatefulSet, replicas int32, skipSetOrUpdateForbiddenFields bool) error {
 	stsClone := sts.DeepCopy()
 	mutatingFn := func() error {
-		if builder, err := newStsBuilder(r.client, ctx.Logger, etcd, replicas, r.useEtcdWrapper, r.imageVector, skipSetOrUpdateForbiddenFields, stsClone); err != nil {
+		if builder, err := newStsBuilder(r.client, ctx.Logger, etcd, replicas, r.useEtcdWrapper, r.updateStrategyOnDelete, r.imageVector, skipSetOrUpdateForbiddenFields, stsClone); err != nil {
 			return err
 		} else {
 			return builder.Build(ctx)

@@ -21,6 +21,8 @@ type Kind string
 const (
 	// StatefulSetKind indicates that the kind of component is a StatefulSet.
 	StatefulSetKind Kind = "StatefulSet"
+	// PodKind indicates that the kind of component is a Pod
+	PodKind Kind = "Pod"
 	// ServiceAccountKind indicates that the kind of component is a ServiceAccount.
 	ServiceAccountKind Kind = "ServiceAccount"
 	// RoleKind indicates that the kind of component is a Role.

@@ -59,6 +59,7 @@ type stsBuilder struct {
 	etcd                   *druidv1alpha1.Etcd
 	replicas               int32
 	useEtcdWrapper         bool
+	updateStrategyOnDelete bool
 	provider               *string
 	etcdImage              string
 	etcdBackupRestoreImage string
@@ -80,6 +81,7 @@ func newStsBuilder(client client.Client,
 	etcd *druidv1alpha1.Etcd,
 	replicas int32,
 	useEtcdWrapper bool,
+	updateStrategyOnDelete bool,
 	imageVector imagevector.ImageVector,
 	skipSetOrUpdateForbiddenFields bool,
 	sts *appsv1.StatefulSet) (*stsBuilder, error) {
@@ -97,6 +99,7 @@ func newStsBuilder(client client.Client,
 		etcd:                           etcd,
 		replicas:                       replicas,
 		useEtcdWrapper:                 useEtcdWrapper,
+		updateStrategyOnDelete:         updateStrategyOnDelete,
 		provider:                       provider,
 		etcdImage:                      etcdImage,
 		etcdBackupRestoreImage:         etcdBackupRestoreImage,
@@ -138,7 +141,7 @@ func (b *stsBuilder) getStatefulSetLabels() map[string]string {
 func (b *stsBuilder) createStatefulSetSpec(ctx component.OperatorContext) error {
 	err := b.createPodTemplateSpec(ctx)
 	b.sts.Spec.Replicas = ptr.To(b.replicas)
-	b.sts.Spec.UpdateStrategy = defaultUpdateStrategy
+	b.sts.Spec.UpdateStrategy = b.getStsUpdateStrategy()
 	if err != nil {
 		return err
 	}
@@ -913,4 +916,11 @@ func getBackupStoreProvider(etcd *druidv1alpha1.Etcd) (*string, error) {
 		return nil, err
 	}
 	return &provider, nil
+}
+
+func (b *stsBuilder) getStsUpdateStrategy() appsv1.StatefulSetUpdateStrategy {
+	if !b.updateStrategyOnDelete {
+		return defaultUpdateStrategy
+	}
+	return appsv1.StatefulSetUpdateStrategy{Type: appsv1.OnDeleteStatefulSetStrategyType}
 }

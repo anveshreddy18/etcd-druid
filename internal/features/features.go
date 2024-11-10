@@ -23,10 +23,17 @@ const (
 	// alpha: v0.19
 	// beta:  v0.22
 	UseEtcdWrapper featuregate.Feature = "UseEtcdWrapper"
+
+	// UpdateStrategyOnDelete enables the use of `OnDelete` update strategy for
+	// the StatefulSet of the etcd cluster instead of the default `RollingUpdate` strategy.
+	// owner @anveshreddy18
+	// alpha: v0.24
+	UpdateStrategyOnDelete featuregate.Feature = "UpdateStrategyOnDelete"
 )
 
 var defaultFeatures = map[featuregate.Feature]featuregate.FeatureSpec{
-	UseEtcdWrapper: {Default: true, PreRelease: featuregate.Beta},
+	UseEtcdWrapper:         {Default: true, PreRelease: featuregate.Beta},
+	UpdateStrategyOnDelete: {Default: false, PreRelease: featuregate.Alpha},
 }
 
 // GetDefaultFeatures returns the default feature gates known to etcd-druid.

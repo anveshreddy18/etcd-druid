@@ -13,6 +13,7 @@ resources:
 
 featureGates:
   UseEtcdWrapper: true
+  UpdateStrategyOnDelete: true
 
 controllerManager:
   server:
