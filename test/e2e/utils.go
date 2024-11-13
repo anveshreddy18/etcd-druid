@@ -655,7 +655,7 @@ func getPurgeLocalSnapstoreJob(storeContainer string) *batchv1.Job {
 			Containers: []corev1.Container{
 				{
 					Name:    "infra",
-					Image:   "ubuntu:23.10",
+					Image:   "ubuntu",
 					Command: []string{"/bin/bash"},
 					Args: []string{"-c",
 						fmt.Sprintf("rm -rf /host-dir-etc/gardener/local-backupbuckets/%s/*", storeContainer),
@@ -876,20 +876,30 @@ func etcdZeroDownTimeValidatorJob(etcdSvc, testName string, tls *v1alpha1.TLSCon
 			},
 			Containers: []corev1.Container{
 				{
-					Name:    "etcd-zero-down-time-validator-" + testName,
-					Image:   "alpine/curl",
-					Command: []string{"/bin/sh"},
+					Name:  "etcd-zero-down-time-validator-" + testName,
+					Image: "ubuntu",
+					Command: []string{"/bin/sh", "-c", "apt update && apt install -y curl", "echo '" +
+						"failed=0 ; threshold=2 ; " +
+						"while [ $failed -lt $threshold ] ; do  " +
+						"$(curl --cacert /var/etcd/ssl/client/ca/ca.crt --cert /var/etcd/ssl/client/client/tls.crt --key /var/etcd/ssl/client/client/tls.key https://" + etcdSvc + ":2379/health -s -f  -o /dev/null ); " +
+						"if [ $? -gt 0 ] ; then let failed++; echo \"etcd is unhealthy and retrying\"; sleep 1; continue;  fi ; " +
+						"echo \"etcd is healthy\";  touch /tmp/healthy; let failed=0; " +
+						"sleep 1; done;  echo \"etcd is unhealthy\"; exit 1;" +
+						"' > test.sh && sh test.sh"},
 					//To avoid flakiness, consider downtime when curl fails consecutively back-to-back.
-					Args: []string{"-ec",
-						"echo '" +
-							"failed=0 ; threshold=2 ; " +
-							"while [ $failed -lt $threshold ] ; do  " +
-							"$(curl --cacert /var/etcd/ssl/client/ca/ca.crt --cert /var/etcd/ssl/client/client/tls.crt --key /var/etcd/ssl/client/client/tls.key https://" + etcdSvc + ":2379/health -s -f  -o /dev/null ); " +
-							"if [ $? -gt 0 ] ; then let failed++; echo \"etcd is unhealthy and retrying\"; sleep 1; continue;  fi ; " +
-							"echo \"etcd is healthy\";  touch /tmp/healthy; let failed=0; " +
-							"sleep 1; done;  echo \"etcd is unhealthy\"; exit 1;" +
-							"' > test.sh && sh test.sh",
-					},
+					// Args: []string{
+					// 	"-ec",
+					// 	"apt update && apt install -y curl",
+					// 	"echo '" +
+					// 		"failed=0 ; threshold=2 ; " +
+					// 		"while [ $failed -lt $threshold ] ; do  " +
+					// 		"$(curl --cacert /var/etcd/ssl/client/ca/ca.crt --cert /var/etcd/ssl/client/client/tls.crt --key /var/etcd/ssl/client/client/tls.key https://" + etcdSvc + ":2379/health -s -f  -o /dev/null ); " +
+					// 		"if [ $? -gt 0 ] ; then let failed++; echo \"etcd is unhealthy and retrying\"; sleep 1; continue;  fi ; " +
+					// 		"echo \"etcd is healthy\";  touch /tmp/healthy; let failed=0; " +
+					// 		"sleep 1; done;  echo \"etcd is unhealthy\"; exit 1;" +
+					// 		"' > test.sh && sh test.sh",
+					// 	"tail -f /dev/null",
+					// },
 					ReadinessProbe: &corev1.Probe{
 						InitialDelaySeconds: int32(5),
 						FailureThreshold:    int32(1),
@@ -956,6 +966,8 @@ func getDebugPod(etcd *v1alpha1.Etcd) *corev1.Pod {
 				{
 					Name:  debugPodContainerName,
 					Image: "nginx",
+					// Command: []string{"/bin/sh"},
+					// Args:    []string{"-c", "apt update && apt install -y curl", "tail -f /dev/null"},
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							MountPath: "/var/etcd/ssl/client/ca",

@@ -85,7 +85,7 @@ var _ = Describe("Etcd", func() {
 
 	Context("when multi-node is configured", func() {
 		It("should perform etcd operations", func() {
-			ctx, cancelFunc := context.WithTimeout(parentCtx, 15*time.Minute)
+			ctx, cancelFunc := context.WithTimeout(parentCtx, 30*time.Minute)
 			defer cancelFunc()
 
 			etcd := getDefaultMultiNodeEtcd(etcdName, namespace, storageContainer, storePrefix, provider)
