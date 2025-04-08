@@ -25,7 +25,7 @@ controllerManager:
   server:
     metrics:
       bindAddress: ""
-      port: 8080
+      port: 7070
     webhook:
       bindAddress: ""
       port: 9443
@@ -47,7 +47,7 @@ controllers:
   compaction:
     enabled: true
     workers: 3
-    etcdEventsThreshold: 1000000
+    etcdEventsThreshold: 100000
     activeDeadlineDuration: 3h
     metricsScrapeWaitDuration: 0s
   etcdCopyBackupsTask:

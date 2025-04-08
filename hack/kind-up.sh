@@ -97,6 +97,10 @@ nodes:
   - containerPort: 4443
     hostPort: 4443
     protocol: TCP
+- role: worker
+  image: kindest/node:v1.32.0
+- role: worker
+  image: kindest/node:v1.32.0
 EOF
   if [ "${DEPLOY_REGISTRY}" = true ]; then
     printf -v reg '[plugins."io.containerd.grpc.v1.cri".registry]
