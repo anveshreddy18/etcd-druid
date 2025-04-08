@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: high-priority-pod
+  labels:
+    app: high-priority-pod
+spec:
+  priorityClassName: high-priority
+  nodeSelector:
+    kubernetes.io/hostname: etcd-druid-e2e-worker2
+  containers:
+  - name: main
+    image: docker.io/library/bash:5
+    command: ["bash"]
+    args:
+    - -c
+    - echo "Hello world! I'm going to exit with 0 (success)." && sleep 200 && exit 0
+    resources:
+      requests:
+        cpu: 8
+        memory: 20000000Ki
+  tolerations:
+  - key: "dedicated"
+    value: "true"
+    effect: "NoSchedule"
+  restartPolicy: Never

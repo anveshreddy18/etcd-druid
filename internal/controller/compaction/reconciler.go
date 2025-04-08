@@ -312,6 +312,14 @@ func (r *Reconciler) createCompactionJob(ctx context.Context, logger logr.Logger
 					Labels:      getLabels(etcd),
 				},
 				Spec: v1.PodSpec{
+					NodeSelector: map[string]string{v1.LabelHostname: "etcd-druid-e2e-worker2"},
+					Tolerations: []v1.Toleration{
+						{
+							Key:    "dedicated",
+							Value:  "true",
+							Effect: v1.TaintEffectNoSchedule,
+						},
+					},
 					ActiveDeadlineSeconds:         ptr.To(int64(activeDeadlineSeconds)),
 					TerminationGracePeriodSeconds: ptr.To[int64](60),
 					ServiceAccountName:            druidv1alpha1.GetServiceAccountName(etcd.ObjectMeta),

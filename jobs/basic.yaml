@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pi
+spec:
+  template:
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: job-test-worker
+      containers:
+      - name: main
+        image: docker.io/library/bash:5
+        command: ["bash"]
+        args:
+        - -c
+        - echo "Hello world! I'm going to exit with 0 (success)." && sleep 200 && exit 0
+        resources:
+          requests:
+            cpu: 8
+            memory: 20000000Ki
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 60
+  backoffLimit: 0
+  completions: 1
+  activeDeadlineSeconds: 300
+  # podFailurePolicy:
+  #   rules:
+  #   - action: Ignore
+  #     onPodConditions:
+  #     - type: DisruptionTarget
+

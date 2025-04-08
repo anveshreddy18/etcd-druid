@@ -1,0 +1,36 @@
+NOTE: We want to keep one thing constant throught the controller code : 
+    1) Use Delete calls for unhealthy ( health is of etcd container in the first phase, it is of pod health in the second phase )
+    2) Use Evict calls for perfectly healthy Etcd pod ( i.e both etcd and backup-restore containers are healthy)
+
+The above is for consistency reasons, to not make the code more complex.
+
+The update process of the OnDelete controller should be as follows : 
+
+Delete all the pods with unhealthy `etcd` containers, wait for them to get ready, meanwhile if some other pod's etcd container becomes unhealthy, delete that pod also. 
+
+----- ONCE ALL THE PODS HAVE HEALTHY ETCD CONTAINERS, we proceed to following step ------------
+
+
+At this point, we have healthy etcd containers, the backup-restore containers can be healthy or unhealthy.
+
+Then we need to update one pod at a time. 
+[Needs discussion with team] The way to select the pod to be updated, is basically by checking the health of the backup-restore
+container and the role of the etcd container. 
+
+Now, how do we determine the `backup-restore` health? We simply use the `pod` health which if `backup-restore` is unhealthy will be set to false.
+So we order the pods based on health + role. We assign more priority to health and then role. 
+
+So the order of preference to delete will be: 
+
+unhealthy pod + Member 
+unhealthy pod + Leader 
+healthy pod + Member 
+healthy pod + Leader
+
+
+Note: we don't consider `Learner` state here because if the `etcd` container is healthy till this point, then the etcd wont be in a learner state.
+
+**IMPORTANT::**
+
+These scenarios need to be reflected in the #Scenarios section of the proposal. 
+
