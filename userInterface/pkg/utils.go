@@ -2,12 +2,28 @@
 package pkg
 
 import (
+	"context"
 	"fmt"
+	"sync"
 
-	// druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
+	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
 	clientSet "github.com/gardener/etcd-druid/client/clientset/versioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
+
+var (
+	configFlags     *genericclioptions.ConfigFlags
+	configFlagsOnce sync.Once
+)
+
+// GetConfigFlags returns a singleton *ConfigFlags for kubeconfig and context handling.
+func GetConfigFlags() *genericclioptions.ConfigFlags {
+	configFlagsOnce.Do(func() {
+		configFlags = genericclioptions.NewConfigFlags(true)
+	})
+	return configFlags
+}
 
 func CreateTypedClientSet(configFlags *genericclioptions.ConfigFlags) (*clientSet.Clientset, error) {
 	config, err := configFlags.ToRESTConfig()
@@ -23,4 +39,11 @@ func CreateTypedClientSet(configFlags *genericclioptions.ConfigFlags) (*clientSe
 	return clientset, nil
 }
 
-// function to get the etcd custom resource and annotate it and patch it or something?
+// ListAllEtcds lists all Etcd resources across all namespaces.
+func ListAllEtcds(ctx context.Context, cs *clientSet.Clientset) ([]druidv1alpha1.Etcd, error) {
+	etcds, err := cs.DruidV1alpha1().Etcds("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list Etcds: %w", err)
+	}
+	return etcds.Items, nil
+}
