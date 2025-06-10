@@ -27,7 +27,7 @@ NOTE: This will only have effect if resource protection webhook has been enabled
 			return fmt.Errorf("failed to get namespace: %w", err)
 		}
 		service := core.NewEtcdProtectionService(clientSet.DruidV1alpha1().Etcds(namespace))
-		updated, err := service.AddProtectionAnnotation(context.TODO(), etcdResourceName)
+		updated, err := service.AddDisableProtectionAnnotation(context.TODO(), etcdResourceName)
 		if err != nil {
 			return err
 		}
@@ -54,7 +54,7 @@ NOTE: This will only have effect if resource protection webhook has been enabled
 			return fmt.Errorf("failed to get namespace: %w", err)
 		}
 		service := core.NewEtcdProtectionService(clientSet.DruidV1alpha1().Etcds(namespace))
-		updated, err := service.RemoveProtectionAnnotation(context.TODO(), etcdResourceName)
+		updated, err := service.RemoveDisableProtectionAnnotation(context.TODO(), etcdResourceName)
 		if err != nil {
 			return err
 		}

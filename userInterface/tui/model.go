@@ -85,6 +85,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.state = ScreenPodList
 					return m, m.fetchPodsCmd(item)
 				}
+			case "d":
+				// Add Disable protection Annotation
+				if len(m.etcdList.Items()) > 0 {
+					item := m.etcdList.SelectedItem().(etcdListItem)
+					m.selectedEtcd = item
+					return m, m.addDisableProtectionAnnotationCmd(item)
+				}
+			case "p":
+				// Remove disable protection (i.e Protect)
+				if len(m.etcdList.Items()) > 0 {
+					item := m.etcdList.SelectedItem().(etcdListItem)
+					m.selectedEtcd = item
+					return m, m.removeProtectionAnnotationCmd(item)
+				}
 			case "q":
 				return m, tea.Quit
 			}
@@ -152,6 +166,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
+	case disableProtectionAnnotationAddedMsg:
+		//
+	case disableProtectionAnnotationRemovedMsg:
+		//
 	case errMsg:
 		m.err = msg
 		m.loading = false
@@ -194,11 +212,11 @@ func (m model) View() string {
 	switch m.state {
 	case ScreenEtcdList:
 		header := "Etcd Clusters (press Enter to view pods)"
-		help := "↑/↓: navigate • Enter: select • q: quit"
+		help := "Enter: select Etcd • d(vulnerable): add disable protection annotation • p(protect): remove disable protection annotation • q: quit"
 		return fmt.Sprintf("%s\n%s\n%s", header, m.etcdList.View(), help)
 	case ScreenPodList:
 		header := fmt.Sprintf("Pods for Etcd: %s/%s", m.selectedEtcd.Namespace, m.selectedEtcd.Name)
-		help := "↑/↓: navigate • d: describe • l: logs • y: yaml • c: containers • q: back"
+		help := "d: describe pod • y: yaml • l/Enter: select container for logs • q: back"
 		return fmt.Sprintf("%s\n%s\n%s", header, m.podList.View(), help)
 	case ScreenPodDescribe:
 		header := fmt.Sprintf("Describe: %s", m.selectedPod.Name)
@@ -214,7 +232,7 @@ func (m model) View() string {
 		return fmt.Sprintf("%s\n%s\n%s", header, m.viewport.View(), help)
 	case ScreenPodContainerSelect:
 		header := fmt.Sprintf("Select Container: %s", m.selectedPod.Name)
-		help := "↑/↓: navigate • Enter: select • esc/q: back"
+		help := "Enter: show logs for container • esc/q: back"
 		return fmt.Sprintf("%s\n%s\n%s", header, m.containerList.View(), help)
 	}
 	return ""

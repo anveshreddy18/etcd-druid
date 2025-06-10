@@ -60,6 +60,8 @@ type yamlLoadedMsg struct{ content string }
 type containersLoadedMsg struct{ containers []string }
 type etcdsLoadedMsg []list.Item
 type errMsg struct{ error }
+type disableProtectionAnnotationAddedMsg struct{}
+type disableProtectionAnnotationRemovedMsg struct{}
 
 func (m describeLoadedMsg) Content() string { return m.content }
 func (m logsLoadedMsg) Content() string     { return m.content }

@@ -24,8 +24,8 @@ func NewEtcdProtectionService(client druidEtcdClient) *EtcdProtectionService {
 	return &EtcdProtectionService{Client: client}
 }
 
-// AddProtectionAnnotation adds the protection annotation to the Etcd resource.
-func (s *EtcdProtectionService) AddProtectionAnnotation(ctx context.Context, name string) (*druidv1alpha1.Etcd, error) {
+// AddDisableProtectionAnnotation adds the disable protection annotation to the Etcd resource. It makes the resources vulnerable
+func (s *EtcdProtectionService) AddDisableProtectionAnnotation(ctx context.Context, name string) (*druidv1alpha1.Etcd, error) {
 	etcd, err := s.Client.Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("unable to get etcd object: %w", err)
@@ -41,8 +41,8 @@ func (s *EtcdProtectionService) AddProtectionAnnotation(ctx context.Context, nam
 	return updated, nil
 }
 
-// RemoveProtectionAnnotation removes the protection annotation from the Etcd resource.
-func (s *EtcdProtectionService) RemoveProtectionAnnotation(ctx context.Context, name string) (*druidv1alpha1.Etcd, error) {
+// RemoveDisableProtectionAnnotation removes the disable protection annotation from the Etcd resource. It protects the resources
+func (s *EtcdProtectionService) RemoveDisableProtectionAnnotation(ctx context.Context, name string) (*druidv1alpha1.Etcd, error) {
 	etcd, err := s.Client.Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("unable to get etcd object: %w", err)
