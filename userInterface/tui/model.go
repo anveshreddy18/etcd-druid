@@ -2,13 +2,22 @@ package tui
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	clientset "github.com/gardener/etcd-druid/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/charmbracelet/lipgloss"
 )
+
+const (
+	notificationDuration = 2 * time.Second
+)
+
+type notificationMsg struct{}
 
 type model struct {
 	state            screenState
@@ -27,7 +36,28 @@ type model struct {
 	containerList list.Model
 	containers    []string
 	viewport      viewport.Model
+
+	notification     string
+	notificationType string
 }
+
+var (
+	notifDangerStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("1")).   // red
+				Background(lipgloss.Color("224")). // light red background
+				Padding(0, 2).
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(lipgloss.Color("1")).
+				Margin(1, 2)
+
+	notifSafeStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("2")).   // green
+			Background(lipgloss.Color("194")). // light green background
+			Padding(0, 2).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("2")).
+			Margin(1, 2)
+)
 
 func NewModel(typedClientset *clientset.Clientset, genericClientSet kubernetes.Interface) model {
 	etcdList := list.New([]list.Item{}, list.NewDefaultDelegate(), defaultWidth, defaultHeight) // set a default size
@@ -167,9 +197,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case disableProtectionAnnotationAddedMsg:
-		//
+		m.notification = "Disable Protection annotation added!"
+		m.notificationType = "danger"
+		return m, tea.Tick(notificationDuration, func(time.Time) tea.Msg { return notificationMsg{} })
 	case disableProtectionAnnotationRemovedMsg:
-		//
+		m.notification = "Disable Protection annotation removed!"
+		m.notificationType = "safe"
+		return m, tea.Tick(notificationDuration, func(time.Time) tea.Msg { return notificationMsg{} })
+	case notificationMsg:
+		m.notification = ""
+		return m, nil
 	case errMsg:
 		m.err = msg
 		m.loading = false
@@ -189,7 +226,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case describeLoadedMsg, logsLoadedMsg, yamlLoadedMsg:
 		m.content = msg.(interface{ Content() string }).Content()
-		fmt.Println("Anvesh:: content is : ", m.content)
 		m.viewport.SetContent(m.content)
 		return m, nil
 	case containersLoadedMsg:
@@ -209,31 +245,50 @@ func (m model) View() string {
 	if m.err != nil {
 		return fmt.Sprintf("Error: %v\nPress 'q' to quit.", m.err)
 	}
+	var notif string
+	if m.notification != "" {
+		var style lipgloss.Style
+		if m.notificationType == "danger" {
+			style = notifDangerStyle
+		} else if m.notificationType == "safe" {
+			style = notifSafeStyle
+		} else {
+			style = notifDangerStyle // fallback
+		}
+		notifBox := style.Render(m.notification)
+		// Overlay notification at bottom right, on top of the main view
+		notif = lipgloss.Place(m.width, 3, lipgloss.Right, lipgloss.Bottom, notifBox)
+	}
+	var view string
 	switch m.state {
 	case ScreenEtcdList:
 		header := "Etcd Clusters (press Enter to view pods)"
-		help := "Enter: select Etcd • d(vulnerable): add disable protection annotation • p(protect): remove disable protection annotation • q: quit"
-		return fmt.Sprintf("%s\n%s\n%s", header, m.etcdList.View(), help)
+		help := "Enter: select Etcd • d: add disable protection annotation (vulnerable) • p: remove disable protection annotation (protect) • q: quit"
+		view = fmt.Sprintf("%s\n%s\n%s", header, m.etcdList.View(), help)
 	case ScreenPodList:
 		header := fmt.Sprintf("Pods for Etcd: %s/%s", m.selectedEtcd.Namespace, m.selectedEtcd.Name)
 		help := "d: describe pod • y: yaml • l/Enter: select container for logs • q: back"
-		return fmt.Sprintf("%s\n%s\n%s", header, m.podList.View(), help)
+		view = fmt.Sprintf("%s\n%s\n%s", header, m.podList.View(), help)
 	case ScreenPodDescribe:
 		header := fmt.Sprintf("Describe: %s", m.selectedPod.Name)
 		help := "esc/q: back • ↑/↓: scroll"
-		return fmt.Sprintf("%s\n%s\n%s", header, m.viewport.View(), help)
+		view = fmt.Sprintf("%s\n%s\n%s", header, m.viewport.View(), help)
 	case ScreenPodLogs:
 		header := fmt.Sprintf("Logs: %s", m.selectedPod.Name)
 		help := "esc/q: back • ↑/↓: scroll"
-		return fmt.Sprintf("%s\n%s\n%s", header, m.viewport.View(), help)
+		view = fmt.Sprintf("%s\n%s\n%s", header, m.viewport.View(), help)
 	case ScreenPodYAML:
 		header := fmt.Sprintf("YAML: %s", m.selectedPod.Name)
 		help := "esc/q: back • ↑/↓: scroll"
-		return fmt.Sprintf("%s\n%s\n%s", header, m.viewport.View(), help)
+		view = fmt.Sprintf("%s\n%s\n%s", header, m.viewport.View(), help)
 	case ScreenPodContainerSelect:
 		header := fmt.Sprintf("Select Container: %s", m.selectedPod.Name)
 		help := "Enter: show logs for container • esc/q: back"
-		return fmt.Sprintf("%s\n%s\n%s", header, m.containerList.View(), help)
+		view = fmt.Sprintf("%s\n%s\n%s", header, m.containerList.View(), help)
 	}
-	return ""
+	if notif != "" {
+		// Overlay notification on top of the main view (not appended)
+		return lipgloss.JoinVertical(lipgloss.Top, view, notif)
+	}
+	return view
 }
