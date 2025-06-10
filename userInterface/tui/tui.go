@@ -10,14 +10,18 @@ import (
 )
 
 func RunTUI(configFlags *genericclioptions.ConfigFlags) {
-	clientset, err := pkg.CreateTypedClientSet(configFlags)
+	typedClientset, err := pkg.CreateTypedClientSet(configFlags)
 	if err != nil {
 		fmt.Println("Error creating k8s client:", err)
 		os.Exit(1)
 	}
-	m := NewModel(clientset)
-	// @anveshreddy18 -- make this a full screen at the end.
-	if _, err := tea.NewProgram(m).Run(); err != nil {
+	genericClientSet, err := pkg.CreateGenericClientSet(configFlags)
+	if err != nil {
+		fmt.Println("Error creating generic k8s client:", err)
+		os.Exit(1)
+	}
+	m := NewModel(typedClientset, genericClientSet)
+	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
 		fmt.Println("Error running TUI:", err)
 		os.Exit(1)
 	}
