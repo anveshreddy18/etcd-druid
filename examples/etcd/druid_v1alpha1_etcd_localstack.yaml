@@ -41,7 +41,7 @@ spec:
     port: 8080
     fullSnapshotSchedule: "0 */24 * * *"
     resources:
-      limits: { cpu: 200m, memory: 1Gi }
+      limits: { cpu: 206m, memory: 1Gi }
       requests: { cpu: 23m, memory: 128Mi }
     garbageCollectionPolicy: Exponential
     garbageCollectionPeriod: 43200s
