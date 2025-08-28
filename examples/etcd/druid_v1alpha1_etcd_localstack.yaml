@@ -43,10 +43,23 @@ spec:
     resources:
       limits: { cpu: 200m, memory: 1Gi }
       requests: { cpu: 23m, memory: 128Mi }
+    snapshotCompaction:
+      resources:
+        requests: { cpu: 30m, memory: 128Mi }
+      eventsThreshold: 100000
+      triggerFullSnapshotThreshold: 200000
     garbageCollectionPolicy: Exponential
     garbageCollectionPeriod: 43200s
     deltaSnapshotPeriod: 300s
     deltaSnapshotMemoryLimit: 1Gi
+    tls:
+      tlsCASecretRef:
+        name: etcdbr-tls-ca
+        dataKey: bundle.crt
+      serverTLSSecretRef:
+        name: etcdbr-tls-server
+      clientTLSSecretRef:
+        name: etcdbr-tls-client
     store:
       container: etcd-bucket
       prefix: etcd-test
@@ -73,7 +86,7 @@ spec:
     #     matchLabels:
     #       app: etcd-statefulset
 
-  replicas: 3
+  replicas: 1
   # priorityClassName: priority-class-name
   # storageClass: default
   # storageCapacity: 10Gi

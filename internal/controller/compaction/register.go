@@ -5,6 +5,7 @@
 package compaction
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -59,7 +60,10 @@ func snapshotRevisionChanged() predicate.Predicate {
 		if !ok {
 			return false
 		}
-
+		// if the holderIdentity is updated, then print
+		if !reflect.DeepEqual(leaseOld.Spec.HolderIdentity, leaseNew.Spec.HolderIdentity) {
+			fmt.Println("Anvesh:: Snapshot revision changed:", leaseNew.Spec.HolderIdentity)
+		}
 		return !reflect.DeepEqual(leaseOld.Spec.HolderIdentity, leaseNew.Spec.HolderIdentity)
 	}
 
@@ -131,6 +135,16 @@ func compactionJobStatusChanged() predicate.Predicate {
 		// Prevent reconciliation when the job has active pods
 		if newStatus.Active > 0 {
 			return false
+		}
+
+		// If the status changes, then print
+		if oldStatus.Active != newStatus.Active ||
+			oldStatus.Succeeded != newStatus.Succeeded ||
+			oldStatus.Failed != newStatus.Failed ||
+			!equalInt32Ptr(oldStatus.Terminating, newStatus.Terminating) ||
+			!equalInt32Ptr(oldStatus.Ready, newStatus.Ready) {
+
+			fmt.Println("Anvesh:: Compaction job status changed:", newStatus)
 		}
 
 		// Compare only the critical status fields
