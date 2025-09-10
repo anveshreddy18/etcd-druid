@@ -7,8 +7,7 @@ import (
 	"sync"
 
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
-	clientSet "github.com/gardener/etcd-druid/client/clientset/versioned"
-	"github.com/gardener/etcd-druid/client/clientset/versioned/typed/core/v1alpha1"
+	druidclientet "github.com/gardener/etcd-druid/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
@@ -27,26 +26,13 @@ func GetConfigFlags() *genericclioptions.ConfigFlags {
 	return configFlags
 }
 
-func CreateTypedClientSet(configFlags *genericclioptions.ConfigFlags) (*clientSet.Clientset, error) {
-	config, err := configFlags.ToRESTConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get REST config: %w", err)
-	}
-
-	// Create a Kubernetes clientset
-	clientset, err := clientSet.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Kubernetes clientset: %w", err)
-	}
-	return clientset, nil
-}
-
 // CreateGenericClientSet returns a client-go kubernetes.Interface for native resources
 func CreateGenericClientSet(configFlags *genericclioptions.ConfigFlags) (kubernetes.Interface, error) {
 	config, err := configFlags.ToRESTConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get REST config: %w", err)
 	}
+	// Create a Generic Kubernetes clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create generic kubernetes clientset: %w", err)
@@ -55,29 +41,10 @@ func CreateGenericClientSet(configFlags *genericclioptions.ConfigFlags) (kuberne
 }
 
 // ListAllEtcds lists all Etcd resources across all namespaces.
-func ListAllEtcds(ctx context.Context, cs *clientSet.Clientset) ([]druidv1alpha1.Etcd, error) {
+func ListAllEtcds(ctx context.Context, cs *druidclientet.Clientset) ([]druidv1alpha1.Etcd, error) {
 	etcds, err := cs.DruidV1alpha1().Etcds("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list Etcds: %w", err)
 	}
 	return etcds.Items, nil
-}
-
-func GetEtcdList(ctx context.Context, cl v1alpha1.DruidV1alpha1Interface, name, namespace string, allNamespaces bool) (*druidv1alpha1.EtcdList, error) {
-	etcdList := &druidv1alpha1.EtcdList{}
-	var err error
-	if allNamespaces {
-		// list all Etcd custom resources present in the entire cluster across all namespaces.
-		etcdList, err = cl.Etcds("").List(ctx, metav1.ListOptions{})
-		if err != nil {
-			return nil, fmt.Errorf("unable to list etcd objects: %w", err)
-		}
-	} else {
-		etcd, err := cl.Etcds(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			return nil, fmt.Errorf("unable to get etcd object: %w", err)
-		}
-		etcdList.Items = append(etcdList.Items, *etcd)
-	}
-	return etcdList, nil
 }

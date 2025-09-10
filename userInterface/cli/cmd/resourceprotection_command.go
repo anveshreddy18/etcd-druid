@@ -2,74 +2,104 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/gardener/etcd-druid/userInterface/core"
-	userInterfacePkg "github.com/gardener/etcd-druid/userInterface/pkg"
+	"github.com/gardener/etcd-druid/userInterface/pkg/output"
 	"github.com/spf13/cobra"
 )
 
-var addComponentProtectionCmd = &cobra.Command{
-	Use:   "add-component-protection <etcd-resource-name>",
-	Short: "Adds resource protection to all managed components for a given etcd cluster",
-	Long: `Adds resource protection to all managed components for a given etcd cluster.
+type ResourceProtectionCommandContext struct {
+	*CommandContext
+}
 
-NOTE: This will only have effect if resource protection webhook has been enabled when deploying etcd-druid.`,
-	Args: cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		var (
-			etcdResourceName string
-			namespace        string
-			err              error
-		)
-		clientSet, err := userInterfacePkg.CreateTypedClientSet(configFlags)
-		if err != nil {
-			return fmt.Errorf("unable to create etcd typed client: %w", err)
-		}
+func (r *ResourceProtectionCommandContext) Validate() error {
+	// add validation logic if any
+	return nil
+}
 
-		if !allNamespaces {
-			etcdResourceName = args[0]
-			if namespace, _, err = configFlags.ToRawKubeConfigLoader().Namespace(); err != nil {
-				return fmt.Errorf("failed to get namespace: %w", err)
+// Create add-component-protection subcommand
+func newAddProtectionCommand(options *Options) *cobra.Command {
+	return &cobra.Command{
+		Use:   "add-component-protection <etcd-resource-name>",
+		Short: "Adds resource protection to all managed components for a given etcd cluster",
+		Long: `Adds resource protection to all managed components for a given etcd cluster.
+			   NOTE: This will only have effect if resource protection webhook has been enabled when deploying etcd-druid.`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Create command context with all common functionality
+			cmdCtx, err := NewCommandContext(cmd, args, options)
+			if err != nil {
+				return err
 			}
-		}
 
-		service := core.NewEtcdProtectionService(clientSet.DruidV1alpha1())
-		if err := service.AddDisableProtectionAnnotation(context.TODO(), etcdResourceName, namespace, allNamespaces); err != nil {
-			return err
-		}
-		fmt.Printf("Added protection annotation to Etcd '%s'\n", etcdResourceName)
-		return nil
-	},
+			// Validate command context
+			if err := cmdCtx.Validate(); err != nil {
+				return err
+			}
+
+			// create resource protection command context
+			resourceProtectionCtx := &ResourceProtectionCommandContext{
+				CommandContext: cmdCtx,
+			}
+
+			// Validate command context
+			if err := resourceProtectionCtx.Validate(); err != nil {
+				return err
+			}
+
+			output.EtcdOperation("Adding component protection to", resourceProtectionCtx.ResourceName, resourceProtectionCtx.Namespace, resourceProtectionCtx.AllNamespaces)
+
+			service := core.NewEtcdProtectionService(resourceProtectionCtx.EtcdClient, resourceProtectionCtx.Verbose)
+			if err := service.AddDisableProtectionAnnotation(context.TODO(), resourceProtectionCtx.ResourceName, resourceProtectionCtx.Namespace, resourceProtectionCtx.AllNamespaces); err != nil {
+				output.EtcdOperationError("Add component protection", err)
+				return err
+			}
+
+			output.EtcdOperationSuccess("Component protection added")
+			return nil
+		},
+	}
 }
 
-var removeComponentProtectionCmd = &cobra.Command{
-	Use:   "remove-component-protection <etcd-resource-name>",
-	Short: "Removes resource protection for all managed components for a given etcd cluster",
-	Long: `Removes resource protection for all managed components for a given etcd cluster.
+// Create remove-component-protection subcommand
+func newRemoveProtectionCommand(options *Options) *cobra.Command {
+	return &cobra.Command{
+		Use:   "remove-component-protection <etcd-resource-name>",
+		Short: "Removes resource protection for all managed components for a given etcd cluster",
+		Long: `Removes resource protection for all managed components for a given etcd cluster.
+			   NOTE: This will only have effect if resource protection webhook has been enabled when deploying etcd-druid.`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Create command context with all common functionality
+			cmdCtx, err := NewCommandContext(cmd, args, options)
+			if err != nil {
+				return err
+			}
+			// Validate command context
+			if err := cmdCtx.Validate(); err != nil {
+				return err
+			}
 
-NOTE: This will only have effect if resource protection webhook has been enabled when deploying etcd-druid.`,
-	Args: cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		clientSet, err := userInterfacePkg.CreateTypedClientSet(configFlags)
-		if err != nil {
-			return fmt.Errorf("unable to create etcd typed client: %w", err)
-		}
-		etcdResourceName := args[0]
-		namespace, _, err := configFlags.ToRawKubeConfigLoader().Namespace()
-		if err != nil {
-			return fmt.Errorf("failed to get namespace: %w", err)
-		}
-		service := core.NewEtcdProtectionService(clientSet.DruidV1alpha1())
-		if err := service.RemoveDisableProtectionAnnotation(context.TODO(), etcdResourceName, namespace, allNamespaces); err != nil {
-			return err
-		}
-		fmt.Printf("Removed protection annotation from Etcd '%s'\n", etcdResourceName)
-		return nil
-	},
-}
+			// create resource protection command context
+			resourceProtectionCtx := &ResourceProtectionCommandContext{
+				CommandContext: cmdCtx,
+			}
 
-func init() {
-	rootCmd.AddCommand(addComponentProtectionCmd)
-	rootCmd.AddCommand(removeComponentProtectionCmd)
+			// Validate command context
+			if err := resourceProtectionCtx.Validate(); err != nil {
+				return err
+			}
+
+			output.EtcdOperation("Removing component protection from", resourceProtectionCtx.ResourceName, resourceProtectionCtx.Namespace, resourceProtectionCtx.AllNamespaces)
+
+			service := core.NewEtcdProtectionService(resourceProtectionCtx.EtcdClient, resourceProtectionCtx.Verbose)
+			if err := service.RemoveDisableProtectionAnnotation(context.TODO(), resourceProtectionCtx.ResourceName, resourceProtectionCtx.Namespace, resourceProtectionCtx.AllNamespaces); err != nil {
+				output.EtcdOperationError("Remove component protection", err)
+				return err
+			}
+
+			output.EtcdOperationSuccess("Component protection removed")
+			return nil
+		},
+	}
 }

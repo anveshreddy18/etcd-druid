@@ -6,31 +6,54 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-var (
-	configFlags   *genericclioptions.ConfigFlags
-	verbose       bool
-	allNamespaces bool
-)
+// Options holds all global options and configuration for the CLI
+type Options struct {
+	// Common CLI options
+	ConfigFlags   *genericclioptions.ConfigFlags
+	Verbose       bool
+	AllNamespaces bool
+}
+
+// NewOptions returns a new Options instance with default values
+func NewOptions() *Options {
+	return &Options{
+		ConfigFlags: pkg.GetConfigFlags(),
+	}
+}
+
+// AddFlags adds flags to the specified command
+func (o *Options) AddFlags(cmd *cobra.Command) {
+	o.ConfigFlags.AddFlags(cmd.PersistentFlags())
+	cmd.PersistentFlags().BoolVarP(&o.Verbose, "verbose", "v", false, "Enable verbose output")
+	cmd.PersistentFlags().BoolVarP(&o.AllNamespaces, "all-namespaces", "A", false,
+		"If present, list the requested object(s) across all namespaces")
+}
+
+// Global options instance
+var options *Options
 
 var rootCmd = &cobra.Command{
 	Use:   "druid [command] [resource] [flags]",
 	Short: "CLI for etcd-druid operator",
 	Long:  `This is a command line interface for Druid. It allows you to interact with Druid using various commands and flags.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if verbose {
+		if options.Verbose {
 			cmd.Println("Verbose mode enabled")
 		}
 		cmd.Help()
 	},
 }
 
+// Execute runs the root command
 func Execute() error {
-	return rootCmd.Execute()
-}
+	options = NewOptions()
+	options.AddFlags(rootCmd)
 
-func init() {
-	configFlags = pkg.GetConfigFlags()
-	configFlags.AddFlags(rootCmd.PersistentFlags())
-	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
-	rootCmd.Flags().BoolVarP(&allNamespaces, "all-namespaces", "A", false, "perform operation on all namespaces")
+	// Add subcommands
+	rootCmd.AddCommand(NewReconcileCommand(options))
+	rootCmd.AddCommand(newAddProtectionCommand(options))
+	rootCmd.AddCommand(newRemoveProtectionCommand(options))
+	// We'll add other commands as we update them
+
+	return rootCmd.Execute()
 }
