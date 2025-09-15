@@ -10,11 +10,12 @@ import (
 
 // CommandContext holds common state and functionality for all commands
 type CommandContext struct {
-	EtcdClient    core.EtcdClientI
+	EtcdClient    core.EtcdClientInterface
 	ResourceName  string
 	Namespace     string
 	AllNamespaces bool
 	Verbose       bool
+	Output        output.OutputService
 }
 
 func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*CommandContext, error) {
@@ -22,8 +23,11 @@ func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*Co
 	allNs := options.AllNamespaces
 	verbose := options.Verbose
 
+	// Create output service
+	outputService := output.NewService(output.OutputTypeCharm)
+
 	// Set output verbosity
-	output.SetVerbose(verbose)
+	outputService.SetVerbose(verbose)
 
 	// Handle resource name and namespace
 	resourceName := ""
@@ -34,14 +38,14 @@ func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*Co
 		resourceName = args[0]
 	}
 	if namespace, _, err = options.ConfigFlags.ToRawKubeConfigLoader().Namespace(); err != nil {
-		output.Error(fmt.Sprintf("Failed to get namespace: %v", err))
+		outputService.Error("Failed to get namespace: ", err)
 	}
 
 	// Create etcd client
 	clientFactory := core.NewClientFactory(options.ConfigFlags)
 	etcdClient, err := clientFactory.CreateTypedEtcdClient()
 	if err != nil {
-		output.Error(fmt.Sprintf("Unable to create etcd client: %v", err))
+		outputService.Error("Unable to create etcd client: ", err)
 		return nil, err
 	}
 
@@ -51,6 +55,7 @@ func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*Co
 		Namespace:     namespace,
 		AllNamespaces: allNs,
 		Verbose:       verbose,
+		Output:        outputService,
 	}, nil
 }
 

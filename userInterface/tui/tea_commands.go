@@ -76,7 +76,7 @@ func (m model) fetchContainersCmd(pod Pod) tea.Cmd {
 func (m model) addDisableProtectionAnnotationCmd(etcdItem etcdListItem) tea.Cmd {
 	return func() tea.Msg {
 		client := core.NewEtcdClient(m.typedClientset.DruidV1alpha1())
-		service := core.NewEtcdProtectionService(client, false)
+		service := core.NewEtcdProtectionService(client, false, nil)
 		if err := service.AddDisableProtectionAnnotation(context.TODO(), etcdItem.Name, etcdItem.Namespace, false); err != nil {
 			return errMsg{err}
 		}
@@ -87,7 +87,7 @@ func (m model) addDisableProtectionAnnotationCmd(etcdItem etcdListItem) tea.Cmd 
 func (m model) removeProtectionAnnotationCmd(etcdItem etcdListItem) tea.Cmd {
 	return func() tea.Msg {
 		client := core.NewEtcdClient(m.typedClientset.DruidV1alpha1())
-		service := core.NewEtcdProtectionService(client, false)
+		service := core.NewEtcdProtectionService(client, false, nil)
 		if err := service.RemoveDisableProtectionAnnotation(context.TODO(), etcdItem.Name, etcdItem.Namespace, false); err != nil {
 			return errMsg{err}
 		}

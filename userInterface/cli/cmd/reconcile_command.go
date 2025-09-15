@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gardener/etcd-druid/userInterface/core"
-	"github.com/gardener/etcd-druid/userInterface/pkg/output"
 	"github.com/spf13/cobra"
 )
 
@@ -56,20 +55,25 @@ func NewReconcileCommand(options *Options) *cobra.Command {
 			}
 
 			// Show operation start
-			output.EtcdOperation("Reconciling", reconcileCommandCtx.ResourceName, reconcileCommandCtx.Namespace, reconcileCommandCtx.AllNamespaces)
+			if reconcileCommandCtx.AllNamespaces {
+				reconcileCommandCtx.Output.Info("Reconciling Etcd resources across all namespaces")
+			} else {
+				reconcileCommandCtx.Output.Info("Reconciling Etcd resource", reconcileCommandCtx.ResourceName, reconcileCommandCtx.Namespace)
+			}
 
 			service := core.NewEtcdReconciliationService(
 				reconcileCommandCtx.EtcdClient,
 				reconcileCommandCtx.WaitTillReady,
 				reconcileCommandCtx.Timeout,
 				reconcileCommandCtx.Verbose,
+				reconcileCommandCtx.Output,
 			)
 			if err := service.ReconcileEtcd(context.TODO(), reconcileCommandCtx.ResourceName, reconcileCommandCtx.Namespace, reconcileCommandCtx.AllNamespaces); err != nil {
-				output.EtcdOperationError("Reconciliation", err)
+				reconcileCommandCtx.Output.Error("Reconciliation failed", err)
 				return err
 			}
 
-			output.EtcdOperationSuccess("Reconciliation")
+			reconcileCommandCtx.Output.Success("Reconciliation completed successfully")
 			return nil
 		},
 	}

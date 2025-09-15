@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/gardener/etcd-druid/userInterface/core"
-	"github.com/gardener/etcd-druid/userInterface/pkg/output"
 	"github.com/spf13/cobra"
 )
 
@@ -47,15 +46,19 @@ func newAddProtectionCommand(options *Options) *cobra.Command {
 				return err
 			}
 
-			output.EtcdOperation("Adding component protection to", resourceProtectionCtx.ResourceName, resourceProtectionCtx.Namespace, resourceProtectionCtx.AllNamespaces)
+			if resourceProtectionCtx.AllNamespaces {
+				resourceProtectionCtx.Output.Info("Adding component protection to all namespaces")
+			} else {
+				resourceProtectionCtx.Output.Info("Adding component protection to Etcd", resourceProtectionCtx.ResourceName, resourceProtectionCtx.Namespace)
+			}
 
-			service := core.NewEtcdProtectionService(resourceProtectionCtx.EtcdClient, resourceProtectionCtx.Verbose)
+			service := core.NewEtcdProtectionService(resourceProtectionCtx.EtcdClient, resourceProtectionCtx.Verbose, resourceProtectionCtx.Output)
 			if err := service.AddDisableProtectionAnnotation(context.TODO(), resourceProtectionCtx.ResourceName, resourceProtectionCtx.Namespace, resourceProtectionCtx.AllNamespaces); err != nil {
-				output.EtcdOperationError("Add component protection", err)
+				resourceProtectionCtx.Output.Error("Add component protection failed", err)
 				return err
 			}
 
-			output.EtcdOperationSuccess("Component protection added")
+			resourceProtectionCtx.Output.Success("Component protection added successfully")
 			return nil
 		},
 	}
@@ -90,15 +93,19 @@ func newRemoveProtectionCommand(options *Options) *cobra.Command {
 				return err
 			}
 
-			output.EtcdOperation("Removing component protection from", resourceProtectionCtx.ResourceName, resourceProtectionCtx.Namespace, resourceProtectionCtx.AllNamespaces)
+			if resourceProtectionCtx.AllNamespaces {
+				resourceProtectionCtx.Output.Info("Removing component protection from Etcds across all namespaces")
+			} else {
+				resourceProtectionCtx.Output.Info("Removing component protection from Etcd", resourceProtectionCtx.ResourceName, resourceProtectionCtx.Namespace)
+			}
 
-			service := core.NewEtcdProtectionService(resourceProtectionCtx.EtcdClient, resourceProtectionCtx.Verbose)
+			service := core.NewEtcdProtectionService(resourceProtectionCtx.EtcdClient, resourceProtectionCtx.Verbose, resourceProtectionCtx.Output)
 			if err := service.RemoveDisableProtectionAnnotation(context.TODO(), resourceProtectionCtx.ResourceName, resourceProtectionCtx.Namespace, resourceProtectionCtx.AllNamespaces); err != nil {
-				output.EtcdOperationError("Remove component protection", err)
+				resourceProtectionCtx.Output.Error("Remove component protection failed", err)
 				return err
 			}
 
-			output.EtcdOperationSuccess("Component protection removed")
+			resourceProtectionCtx.Output.Success("Component protection removed successfully")
 			return nil
 		},
 	}

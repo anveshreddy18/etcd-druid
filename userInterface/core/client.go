@@ -6,7 +6,6 @@ import (
 
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
 	druidclientet "github.com/gardener/etcd-druid/client/clientset/versioned"
-	"github.com/gardener/etcd-druid/userInterface/pkg/output"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
@@ -31,10 +30,9 @@ func (a *EtcdClient) ListEtcds(ctx context.Context, namespace string) (*druidv1a
 }
 
 // CreateTypedEtcdClient creates and returns an EtcdClient Interface
-func (f *ClientFactory) CreateTypedEtcdClient() (EtcdClientI, error) {
+func (f *ClientFactory) CreateTypedEtcdClient() (EtcdClientInterface, error) {
 	clientSet, err := CreateTypedClientSet(f.configFlags)
 	if err != nil {
-		output.Error(fmt.Sprintf("Unable to create etcd typed clientset: %v", err))
 		return nil, err
 	}
 	return NewEtcdClient(clientSet.DruidV1alpha1()), nil

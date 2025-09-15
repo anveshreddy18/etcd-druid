@@ -1,7 +1,8 @@
 apiVersion: druid.gardener.cloud/v1alpha1
 kind: Etcd
 metadata:
-  name: etcd-test
+  name: etcd-test-new
+  # namespace: anvesh
   labels:
     app: etcd-statefulset
     gardener.cloud/role: controlplane
@@ -41,14 +42,14 @@ spec:
     port: 8080
     fullSnapshotSchedule: "0 */24 * * *"
     resources:
-      limits: { cpu: 219m, memory: 1Gi }
+      limits: { cpu: 223m, memory: 1Gi }
       requests: { cpu: 23m, memory: 128Mi }
     garbageCollectionPolicy: Exponential
     garbageCollectionPeriod: 43200s
     deltaSnapshotPeriod: 300s
     deltaSnapshotMemoryLimit: 1Gi
     store:
-      container: etcd-bucket
+      container: etcd-bucket-new
       prefix: etcd-test
       provider: S3
       secretRef:
@@ -73,7 +74,7 @@ spec:
     #     matchLabels:
     #       app: etcd-statefulset
 
-  replicas: 3
+  replicas: 1
   # priorityClassName: priority-class-name
   # storageClass: default
   # storageCapacity: 10Gi

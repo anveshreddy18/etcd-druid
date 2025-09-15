@@ -8,7 +8,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-type EtcdClientI interface {
+type EtcdClientInterface interface {
 	GetEtcd(ctx context.Context, namespace, name string) (*druidv1alpha1.Etcd, error)
 	UpdateEtcd(ctx context.Context, etcd *druidv1alpha1.Etcd) (*druidv1alpha1.Etcd, error)
 	ListEtcds(ctx context.Context, namespace string) (*druidv1alpha1.EtcdList, error)
@@ -18,7 +18,7 @@ type EtcdClient struct {
 	client v1alpha1.DruidV1alpha1Interface
 }
 
-func NewEtcdClient(client v1alpha1.DruidV1alpha1Interface) EtcdClientI {
+func NewEtcdClient(client v1alpha1.DruidV1alpha1Interface) EtcdClientInterface {
 	return &EtcdClient{client: client}
 }
 
