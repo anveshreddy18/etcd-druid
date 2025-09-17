@@ -33,23 +33,18 @@ func (s *EtcdProtectionService) AddDisableProtectionAnnotation(ctx context.Conte
 
 	for _, etcd := range etcdList.Items {
 		if s.verbose {
-			s.output.Info("Processing etcd", etcd.Name, etcd.Namespace)
+			s.output.Info("Processing set disable protection annotation for etcd", etcd.Name, etcd.Namespace)
 		}
-		if etcd.Annotations == nil {
-			etcd.Annotations = map[string]string{}
-			if s.verbose {
-				s.output.Info("Initialized annotations map for etcd", etcd.Name, etcd.Namespace)
+		etcdModifier := func(e *druidv1alpha1.Etcd) {
+			if e.Annotations == nil {
+				e.Annotations = map[string]string{}
 			}
+			e.Annotations[druidv1alpha1.DisableEtcdComponentProtectionAnnotation] = ""
 		}
-		etcd.Annotations[druidv1alpha1.DisableEtcdComponentProtectionAnnotation] = ""
-		if s.verbose {
-			s.output.Info("Set disable protection annotation for etcd", etcd.Name, etcd.Namespace)
-		}
-		updatedEtcd, err := s.etcdClient.UpdateEtcd(ctx, &etcd)
-		if err != nil {
+		if err := s.etcdClient.UpdateEtcd(ctx, &etcd, etcdModifier); err != nil {
 			return fmt.Errorf("unable to update etcd object: %w", err)
 		}
-		s.output.Success("Added protection annotation to etcd", updatedEtcd.Name, updatedEtcd.Namespace)
+		s.output.Success("Added protection annotation to etcd", etcd.Name, etcd.Namespace)
 	}
 	return nil
 }
@@ -68,20 +63,20 @@ func (s *EtcdProtectionService) RemoveDisableProtectionAnnotation(ctx context.Co
 
 	for _, etcd := range etcdList.Items {
 		if s.verbose {
-			s.output.Info("Processing etcd", etcd.Name, etcd.Namespace)
+			s.output.Info("Processing remove disable protection annotation for etcd", etcd.Name, etcd.Namespace)
 		}
 		if etcd.Annotations == nil {
 			return fmt.Errorf("no annotation found to remove in ns/etcd: %s/%s", etcd.Namespace, etcd.Name)
 		}
-		delete(etcd.Annotations, druidv1alpha1.DisableEtcdComponentProtectionAnnotation)
-		if s.verbose {
-			s.output.Info("Removed disable protection annotation for etcd", etcd.Name, etcd.Namespace)
+		etcdModifier := func(e *druidv1alpha1.Etcd) {
+			if e.Annotations != nil {
+				delete(e.Annotations, druidv1alpha1.DisableEtcdComponentProtectionAnnotation)
+			}
 		}
-		updatedEtcd, err := s.etcdClient.UpdateEtcd(ctx, &etcd)
-		if err != nil {
+		if err := s.etcdClient.UpdateEtcd(ctx, &etcd, etcdModifier); err != nil {
 			return fmt.Errorf("unable to update etcd object: %w", err)
 		}
-		s.output.Success("Removed protection annotation from etcd", updatedEtcd.Name, updatedEtcd.Namespace)
+		s.output.Success("Removed protection annotation from etcd", etcd.Name, etcd.Namespace)
 	}
 	return nil
 }

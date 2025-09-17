@@ -109,32 +109,27 @@ func (s *EtcdReconciliationService) reconcileEtcd(ctx context.Context, etcd *dru
 }
 
 func (s *EtcdReconciliationService) reconcileEtcdResource(ctx context.Context, etcd *druidv1alpha1.Etcd) error {
-	if etcd.Annotations == nil {
-		etcd.Annotations = make(map[string]string)
+	etcdModifier := func(e *druidv1alpha1.Etcd) {
+		if e.Annotations == nil {
+			e.Annotations = make(map[string]string)
+		}
+		e.Annotations[druidv1alpha1.DruidOperationAnnotation] = druidv1alpha1.DruidOperationReconcile
 	}
-	etcd.Annotations[druidv1alpha1.DruidOperationAnnotation] = druidv1alpha1.DruidOperationReconcile
-	// fetch the latest etcd and use that to update after that
-	latestEtcd, err := s.etcdClient.GetEtcd(ctx, etcd.Namespace, etcd.Name)
-	if err != nil {
-		return fmt.Errorf("unable to get latest etcd object for '%s/%s': %w", etcd.Namespace, etcd.Name, err)
-	}
-	latestEtcd.Annotations[druidv1alpha1.DruidOperationAnnotation] = druidv1alpha1.DruidOperationReconcile
-	updatedEtcd, err := s.etcdClient.UpdateEtcd(ctx, latestEtcd)
-	if err != nil {
+	if err := s.etcdClient.UpdateEtcd(ctx, etcd, etcdModifier); err != nil {
 		return fmt.Errorf("unable to update etcd object '%s/%s': %w", etcd.Namespace, etcd.Name, err)
 	}
-	s.output.Info("Triggered reconciliation for etcd", updatedEtcd.Name, updatedEtcd.Namespace)
+	s.output.Info("Triggered reconciliation for etcd", etcd.Name, etcd.Namespace)
 	return nil
 }
 
 func (s *EtcdReconciliationService) waitForEtcdReady(ctx context.Context, etcd *druidv1alpha1.Etcd) error {
 	s.output.Progress("Waiting for etcd to be ready...", etcd.Name, etcd.Namespace)
 
+	// For the Etcd to be considered ready, the conditions in the conditions slice must all be set to true
 	conditions := []druidv1alpha1.ConditionType{
 		druidv1alpha1.ConditionTypeAllMembersUpdated,
 		druidv1alpha1.ConditionTypeAllMembersReady,
 	}
-	// For the Etcd to be considered ready, the conditions in the conditions slice must all be set to true
 	// use a checkTicker to periodically check the conditions
 	progressTicker := time.NewTicker(10 * time.Second)
 	defer progressTicker.Stop()
