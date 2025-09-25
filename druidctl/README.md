@@ -1,4 +1,4 @@
-# userInterface
+# druidctl
 
 This module provides user-facing interfaces (CLI and TUI) for interacting with the etcd-druid operator in Kubernetes.
 

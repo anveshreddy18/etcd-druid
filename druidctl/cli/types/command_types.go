@@ -1,16 +1,16 @@
-package cmd
+package types
 
 import (
 	"fmt"
 
-	"github.com/gardener/etcd-druid/userInterface/core"
-	"github.com/gardener/etcd-druid/userInterface/pkg/output"
+	client "github.com/gardener/etcd-druid/druidctl/client"
+	"github.com/gardener/etcd-druid/druidctl/pkg/output"
 	"github.com/spf13/cobra"
 )
 
 // CommandContext holds common state and functionality for all commands
 type CommandContext struct {
-	EtcdClient    core.EtcdClientInterface
+	EtcdClient    client.EtcdClientInterface
 	ResourceName  string
 	Namespace     string
 	AllNamespaces bool
@@ -23,13 +23,9 @@ func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*Co
 	allNs := options.AllNamespaces
 	verbose := options.Verbose
 
-	// Create output service
 	outputService := output.NewService(output.OutputTypeCharm)
-
-	// Set output verbosity
 	outputService.SetVerbose(verbose)
 
-	// Handle resource name and namespace
 	resourceName := ""
 	namespace := ""
 	var err error
@@ -41,8 +37,7 @@ func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*Co
 		outputService.Error("Failed to get namespace: ", err)
 	}
 
-	// Create etcd client
-	clientFactory := core.NewClientFactory(options.ConfigFlags)
+	clientFactory := client.NewClientFactory(options.ConfigFlags)
 	etcdClient, err := clientFactory.CreateTypedEtcdClient()
 	if err != nil {
 		outputService.Error("Unable to create etcd client: ", err)

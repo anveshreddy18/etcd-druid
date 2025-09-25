@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gardener/etcd-druid/userInterface/cli/cmd"
+	"github.com/gardener/etcd-druid/druidctl/cli/cmd"
 )
 
 func main() {

@@ -7,16 +7,9 @@ import (
 	"time"
 
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
-	"github.com/gardener/etcd-druid/userInterface/pkg/output"
+	"github.com/gardener/etcd-druid/druidctl/cli/types"
+	client "github.com/gardener/etcd-druid/druidctl/client"
 )
-
-type EtcdReconciliationService struct {
-	etcdClient    EtcdClientInterface
-	waitTillReady bool
-	timeout       time.Duration
-	verbose       bool
-	output        output.OutputService
-}
 
 type ReconcileResult struct {
 	Etcd     *druidv1alpha1.Etcd
@@ -25,24 +18,14 @@ type ReconcileResult struct {
 	Duration time.Duration
 }
 
-func NewEtcdReconciliationService(etcdClient EtcdClientInterface, waitTillReady bool, timeout time.Duration, verbose bool, output output.OutputService) *EtcdReconciliationService {
-	return &EtcdReconciliationService{
-		etcdClient:    etcdClient,
-		waitTillReady: waitTillReady,
-		timeout:       timeout,
-		verbose:       verbose,
-		output:        output,
-	}
-}
-
-// There are two types of reconciles, one where you add the reconcile annotation and call it a day.
+// There are two types of reconciles, one where you add the reconcile annotation and exit.
 // Another where you wait till all the changes done to the Etcd resource have successfully reconciled and post reconciliation
 // all the etcd cluster members are Ready
 
-func (s *EtcdReconciliationService) ReconcileEtcd(ctx context.Context, name, namespace string, allNamespaces bool) error {
-	ctx, cancel := context.WithTimeout(ctx, s.timeout)
+func ReconcileEtcd(ctx context.Context, reconcileCommandCtx *types.ReconcileCommandContext) error {
+	ctx, cancel := context.WithTimeout(ctx, reconcileCommandCtx.Timeout)
 	defer cancel()
-	etcdList, err := GetEtcdList(ctx, s.etcdClient, name, namespace, allNamespaces)
+	etcdList, err := GetEtcdList(ctx, reconcileCommandCtx.EtcdClient, reconcileCommandCtx.ResourceName, reconcileCommandCtx.Namespace, reconcileCommandCtx.AllNamespaces)
 	if err != nil {
 		return err
 	}
@@ -58,7 +41,7 @@ func (s *EtcdReconciliationService) ReconcileEtcd(ctx context.Context, name, nam
 		go func(etcd druidv1alpha1.Etcd) {
 			defer wg.Done()
 			startTime := time.Now()
-			err := s.reconcileEtcd(ctx, &etcd)
+			err := reconcileEtcd(ctx, &etcd, reconcileCommandCtx)
 			resultChan <- &ReconcileResult{
 				Etcd:     &etcd,
 				Success:  err == nil,
@@ -76,9 +59,9 @@ func (s *EtcdReconciliationService) ReconcileEtcd(ctx context.Context, name, nam
 	for result := range resultChan {
 		results = append(results, result)
 		if result.Success {
-			s.output.Success(fmt.Sprintf("Reconciliation successful in %s", result.Duration), result.Etcd.Name, result.Etcd.Namespace)
+			reconcileCommandCtx.Output.Success(fmt.Sprintf("Reconciliation successful in %s", result.Duration), result.Etcd.Name, result.Etcd.Namespace)
 		} else {
-			s.output.Error("Reconciliation failed", result.Error, result.Etcd.Name, result.Etcd.Namespace)
+			reconcileCommandCtx.Output.Error("Reconciliation failed", result.Error, result.Etcd.Name, result.Etcd.Namespace)
 		}
 	}
 
@@ -92,38 +75,38 @@ func (s *EtcdReconciliationService) ReconcileEtcd(ctx context.Context, name, nam
 	return nil
 }
 
-func (s *EtcdReconciliationService) reconcileEtcd(ctx context.Context, etcd *druidv1alpha1.Etcd) error {
-	s.output.Start("Starting reconciliation for etcd", etcd.Name, etcd.Namespace)
+func reconcileEtcd(ctx context.Context, etcd *druidv1alpha1.Etcd, reconcileCommandCtx *types.ReconcileCommandContext) error {
+	reconcileCommandCtx.Output.Start("Starting reconciliation for etcd", etcd.Name, etcd.Namespace)
 
 	// first reconcile the Etcd resource
-	if err := s.reconcileEtcdResource(ctx, etcd); err != nil {
+	if err := reconcileEtcdResource(ctx, etcd, reconcileCommandCtx); err != nil {
 		return err
 	}
 
-	if s.waitTillReady {
-		if err := s.waitForEtcdReady(ctx, etcd); err != nil {
+	if reconcileCommandCtx.WaitTillReady {
+		if err := waitForEtcdReady(ctx, etcd, reconcileCommandCtx); err != nil {
 			return fmt.Errorf("error waiting for Etcd '%s/%s' to be ready: %w", etcd.Namespace, etcd.Name, err)
 		}
 	}
 	return nil
 }
 
-func (s *EtcdReconciliationService) reconcileEtcdResource(ctx context.Context, etcd *druidv1alpha1.Etcd) error {
+func reconcileEtcdResource(ctx context.Context, etcd *druidv1alpha1.Etcd, reconcileCommandCtx *types.ReconcileCommandContext) error {
 	etcdModifier := func(e *druidv1alpha1.Etcd) {
 		if e.Annotations == nil {
 			e.Annotations = make(map[string]string)
 		}
 		e.Annotations[druidv1alpha1.DruidOperationAnnotation] = druidv1alpha1.DruidOperationReconcile
 	}
-	if err := s.etcdClient.UpdateEtcd(ctx, etcd, etcdModifier); err != nil {
+	if err := reconcileCommandCtx.EtcdClient.UpdateEtcd(ctx, etcd, etcdModifier); err != nil {
 		return fmt.Errorf("unable to update etcd object '%s/%s': %w", etcd.Namespace, etcd.Name, err)
 	}
-	s.output.Info("Triggered reconciliation for etcd", etcd.Name, etcd.Namespace)
+	reconcileCommandCtx.Output.Info("Triggered reconciliation for etcd", etcd.Name, etcd.Namespace)
 	return nil
 }
 
-func (s *EtcdReconciliationService) waitForEtcdReady(ctx context.Context, etcd *druidv1alpha1.Etcd) error {
-	s.output.Progress("Waiting for etcd to be ready...", etcd.Name, etcd.Namespace)
+func waitForEtcdReady(ctx context.Context, etcd *druidv1alpha1.Etcd, reconcileCommandCtx *types.ReconcileCommandContext) error {
+	reconcileCommandCtx.Output.Progress("Waiting for etcd to be ready...", etcd.Name, etcd.Namespace)
 
 	// For the Etcd to be considered ready, the conditions in the conditions slice must all be set to true
 	conditions := []druidv1alpha1.ConditionType{
@@ -141,47 +124,45 @@ func (s *EtcdReconciliationService) waitForEtcdReady(ctx context.Context, etcd *
 		select {
 		case <-progressTicker.C:
 			// Check the progress
-			s.output.Progress("Still waiting for etcd to be ready...", etcd.Name, etcd.Namespace)
+			reconcileCommandCtx.Output.Progress("Still waiting for etcd to be ready...", etcd.Name, etcd.Namespace)
 		case <-checkTicker.C:
 			// Check if all conditions are met
-			ready, err := s.checkEtcdConditions(ctx, etcd, conditions)
+			ready, err := checkEtcdConditions(ctx, etcd, conditions, reconcileCommandCtx)
 			if err != nil {
-				s.output.Error("Error checking conditions for Etcd", err, etcd.Name, etcd.Namespace)
+				reconcileCommandCtx.Output.Error("Error checking conditions for Etcd", err, etcd.Name, etcd.Namespace)
 			}
 			if ready {
-				s.output.Success("Etcd is now ready", etcd.Name, etcd.Namespace)
+				reconcileCommandCtx.Output.Success("Etcd is now ready", etcd.Name, etcd.Namespace)
 				return nil
 			}
 		case <-ctx.Done():
-			// context canceled
 			return fmt.Errorf("context canceled while waiting for Etcd '%s/%s' to be ready: %w", etcd.Namespace, etcd.Name, ctx.Err())
 		}
 	}
 }
 
-func (s *EtcdReconciliationService) checkEtcdConditions(ctx context.Context, etcd *druidv1alpha1.Etcd, conditions []druidv1alpha1.ConditionType) (bool, error) {
-	latestEtcd, err := s.etcdClient.GetEtcd(ctx, etcd.Namespace, etcd.Name)
+func checkEtcdConditions(ctx context.Context, etcd *druidv1alpha1.Etcd, conditions []druidv1alpha1.ConditionType, reconcileCommandCtx *types.ReconcileCommandContext) (bool, error) {
+	latestEtcd, err := reconcileCommandCtx.EtcdClient.GetEtcd(ctx, etcd.Namespace, etcd.Name)
 	if err != nil {
 		return false, fmt.Errorf("failed to get latest Etcd '%s/%s': %w", etcd.Namespace, etcd.Name, err)
 	}
 
 	failingConditions := []druidv1alpha1.ConditionType{}
 	for _, condition := range conditions {
-		if !s.isEtcdConditionTrue(latestEtcd, condition) {
+		if !isEtcdConditionTrue(latestEtcd, condition) {
 			failingConditions = append(failingConditions, condition)
 		}
 	}
 	if len(failingConditions) > 0 {
-		if s.verbose {
-			s.output.Info(fmt.Sprintf("Etcd is not ready. Failing conditions: %v", failingConditions), latestEtcd.Name, latestEtcd.Namespace)
+		if reconcileCommandCtx.Verbose {
+			reconcileCommandCtx.Output.Info(fmt.Sprintf("Etcd is not ready. Failing conditions: %v", failingConditions), latestEtcd.Name, latestEtcd.Namespace)
 		}
 		return false, nil
 	}
 	return true, nil
 }
 
-func (s *EtcdReconciliationService) isEtcdConditionTrue(etcd *druidv1alpha1.Etcd, condition druidv1alpha1.ConditionType) bool {
-	// Check if the specified condition is true for the Etcd resource
+func isEtcdConditionTrue(etcd *druidv1alpha1.Etcd, condition druidv1alpha1.ConditionType) bool {
 	for _, cond := range etcd.Status.Conditions {
 		if cond.Type == condition && cond.Status == druidv1alpha1.ConditionTrue {
 			return true
@@ -190,11 +171,10 @@ func (s *EtcdReconciliationService) isEtcdConditionTrue(etcd *druidv1alpha1.Etcd
 	return false
 }
 
-func GetEtcdList(ctx context.Context, cl EtcdClientInterface, name, namespace string, allNamespaces bool) (*druidv1alpha1.EtcdList, error) {
+func GetEtcdList(ctx context.Context, cl client.EtcdClientInterface, name, namespace string, allNamespaces bool) (*druidv1alpha1.EtcdList, error) {
 	etcdList := &druidv1alpha1.EtcdList{}
 	var err error
 	if allNamespaces {
-		// list all Etcd custom resources present in the entire cluster across all namespaces.
 		etcdList, err = cl.ListEtcds(ctx, "")
 		if err != nil {
 			return nil, fmt.Errorf("unable to list etcd objects: %w", err)

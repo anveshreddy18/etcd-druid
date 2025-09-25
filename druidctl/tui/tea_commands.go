@@ -6,8 +6,10 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/gardener/etcd-druid/userInterface/core"
-	"github.com/gardener/etcd-druid/userInterface/pkg"
+	"github.com/gardener/etcd-druid/druidctl/cli/types"
+	client "github.com/gardener/etcd-druid/druidctl/client"
+	core "github.com/gardener/etcd-druid/druidctl/internal"
+	"github.com/gardener/etcd-druid/druidctl/pkg"
 )
 
 // Async commands for Etcds, pods, describe, logs, yaml, containers
@@ -75,9 +77,14 @@ func (m model) fetchContainersCmd(pod Pod) tea.Cmd {
 
 func (m model) addDisableProtectionAnnotationCmd(etcdItem etcdListItem) tea.Cmd {
 	return func() tea.Msg {
-		client := core.NewEtcdClient(m.typedClientset.DruidV1alpha1())
-		service := core.NewEtcdProtectionService(client, false, nil)
-		if err := service.AddDisableProtectionAnnotation(context.TODO(), etcdItem.Name, etcdItem.Namespace, false); err != nil {
+		client := client.NewEtcdClient(m.typedClientset.DruidV1alpha1())
+		cmdCtx := types.CommandContext{
+			EtcdClient:   client,
+			ResourceName: etcdItem.Name,
+			Namespace:    etcdItem.Namespace,
+		}
+		resourceProtectionCtx := types.NewResourceProtectionCommandContext(&cmdCtx)
+		if err := core.AddDisableProtectionAnnotation(context.TODO(), resourceProtectionCtx); err != nil {
 			return errMsg{err}
 		}
 		return disableProtectionAnnotationAddedMsg{}
@@ -86,9 +93,14 @@ func (m model) addDisableProtectionAnnotationCmd(etcdItem etcdListItem) tea.Cmd 
 
 func (m model) removeProtectionAnnotationCmd(etcdItem etcdListItem) tea.Cmd {
 	return func() tea.Msg {
-		client := core.NewEtcdClient(m.typedClientset.DruidV1alpha1())
-		service := core.NewEtcdProtectionService(client, false, nil)
-		if err := service.RemoveDisableProtectionAnnotation(context.TODO(), etcdItem.Name, etcdItem.Namespace, false); err != nil {
+		client := client.NewEtcdClient(m.typedClientset.DruidV1alpha1())
+		cmdCtx := types.CommandContext{
+			EtcdClient:   client,
+			ResourceName: etcdItem.Name,
+			Namespace:    etcdItem.Namespace,
+		}
+		resourceProtectionCtx := types.NewResourceProtectionCommandContext(&cmdCtx)
+		if err := core.RemoveDisableProtectionAnnotation(context.TODO(), resourceProtectionCtx); err != nil {
 			return errMsg{err}
 		}
 		return disableProtectionAnnotationRemovedMsg{}

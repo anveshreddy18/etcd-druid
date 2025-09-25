@@ -1,4 +1,4 @@
-module github.com/gardener/etcd-druid/userInterface
+module github.com/gardener/etcd-druid/druidctl
 
 go 1.24.0
 

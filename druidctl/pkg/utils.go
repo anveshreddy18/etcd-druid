@@ -1,4 +1,4 @@
-// Utility functions and shared types for userInterface module.
+// Utility functions and shared types for druidctl module.
 package pkg
 
 import (

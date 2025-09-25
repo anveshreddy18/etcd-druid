@@ -5,13 +5,13 @@ import (
 	os "os"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/gardener/etcd-druid/userInterface/core"
-	"github.com/gardener/etcd-druid/userInterface/pkg"
+	client "github.com/gardener/etcd-druid/druidctl/client"
+	"github.com/gardener/etcd-druid/druidctl/pkg"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 func RunTUI(configFlags *genericclioptions.ConfigFlags) {
-	typedClientset, err := core.CreateTypedClientSet(configFlags)
+	typedClientset, err := client.CreateTypedClientSet(configFlags)
 	if err != nil {
 		fmt.Println("Error creating k8s client:", err)
 		os.Exit(1)

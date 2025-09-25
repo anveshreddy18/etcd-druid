@@ -1,7 +1,7 @@
 package cmd
 
 // import (
-// 	"github.com/gardener/etcd-druid/userInterface/tui"
+// 	"github.com/gardener/etcd-druid/druidctl/tui"
 // 	"github.com/spf13/cobra"
 // )
 

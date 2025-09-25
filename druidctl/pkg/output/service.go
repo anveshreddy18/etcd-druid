@@ -1,7 +1,7 @@
 package output
 
 import (
-	"github.com/gardener/etcd-druid/userInterface/pkg/output/charm"
+	"github.com/gardener/etcd-druid/druidctl/pkg/output/charm"
 )
 
 func DefaultService() OutputService {
