@@ -2,6 +2,7 @@
 package charm
 
 import (
+	"fmt"
 	"io"
 	"os"
 
@@ -44,8 +45,6 @@ func (w *CharmWriter) LogWarn(message string) {
 // SetVerbose sets the verbose mode
 func (w *CharmWriter) SetVerbose(verbose bool) {
 	w.verbose = verbose
-
-	// If verbose, show debug logs
 	if verbose {
 		w.logger.SetLevel(log.DebugLevel)
 	} else {
@@ -61,4 +60,9 @@ func (w *CharmWriter) IsVerbose() bool {
 // SetOutput sets the output writer
 func (w *CharmWriter) SetOutput(output io.Writer) {
 	w.logger.SetOutput(output)
+}
+
+// WriteRaw writes a message directly to stdout without any logging prefixes
+func (w *CharmWriter) WriteRaw(message string) {
+	fmt.Println(message)
 }

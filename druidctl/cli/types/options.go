@@ -12,6 +12,7 @@ type Options struct {
 	ConfigFlags   *genericclioptions.ConfigFlags
 	Verbose       bool
 	AllNamespaces bool
+	DisableBanner bool
 }
 
 // NewOptions returns a new Options instance with default values
@@ -27,4 +28,5 @@ func (o *Options) AddFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVarP(&o.Verbose, "verbose", "v", false, "Enable verbose output")
 	cmd.PersistentFlags().BoolVarP(&o.AllNamespaces, "all-namespaces", "A", false,
 		"If present, list the requested object(s) across all namespaces")
+	cmd.PersistentFlags().BoolVar(&o.DisableBanner, "no-banner", false, "Disable the CLI banner")
 }

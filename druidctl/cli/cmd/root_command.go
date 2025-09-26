@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/gardener/etcd-druid/druidctl/cli/types"
+	"github.com/gardener/etcd-druid/druidctl/pkg/banner"
 	"github.com/spf13/cobra"
 )
 
@@ -24,6 +25,15 @@ var rootCmd = &cobra.Command{
 func Execute() error {
 	options = types.NewOptions()
 	options.AddFlags(rootCmd)
+
+	originalPreRun := rootCmd.PersistentPreRun
+	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		banner.ShowBanner(options.DisableBanner)
+
+		if originalPreRun != nil {
+			originalPreRun(cmd, args)
+		}
+	}
 
 	// Add subcommands
 	rootCmd.AddCommand(NewReconcileCommand(options))

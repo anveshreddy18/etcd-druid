@@ -56,6 +56,10 @@ func (s *CharmService) Header(message string, params ...string) {
 	s.writer.LogInfo(s.formatter.FormatHeader(constructPrefixFromParams(params...)) + s.formatter.FormatHeader(message))
 }
 
+func (s *CharmService) RawHeader(message string) {
+	s.writer.WriteRaw(s.formatter.FormatHeader(message))
+}
+
 // Progress displays a progress message
 func (s *CharmService) Progress(message string, params ...string) {
 	s.writer.LogInfo(s.formatter.FormatHeader(constructPrefixFromParams(params...)) + s.formatter.FormatProgress(message))

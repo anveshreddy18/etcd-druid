@@ -1,7 +1,7 @@
 apiVersion: druid.gardener.cloud/v1alpha1
 kind: Etcd
 metadata:
-  name: etcd-test
+  name: etcd-test-new
   # namespace: anvesh
   labels:
     app: etcd-statefulset
@@ -42,7 +42,7 @@ spec:
     port: 8080
     fullSnapshotSchedule: "0 */24 * * *"
     resources:
-      limits: { cpu: 201m, memory: 1Gi }
+      limits: { cpu: 202m, memory: 1Gi }
       requests: { cpu: 23m, memory: 128Mi }
     garbageCollectionPolicy: Exponential
     garbageCollectionPeriod: 43200s

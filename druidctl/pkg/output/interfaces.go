@@ -19,6 +19,7 @@ type Writer interface {
 	LogInfo(message string)
 	LogError(message string, keyvals ...interface{})
 	LogWarn(message string)
+	WriteRaw(message string)
 	SetVerbose(verbose bool)
 	SetOutput(w io.Writer)
 	IsVerbose() bool
@@ -32,6 +33,7 @@ type OutputService interface {
 	Info(message string, params ...string)
 	Warning(message string, params ...string)
 	Header(message string, params ...string)
+	RawHeader(message string)
 	Progress(message string, params ...string)
 	Start(message string, params ...string)
 
