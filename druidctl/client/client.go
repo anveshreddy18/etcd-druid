@@ -11,6 +11,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/discovery"
+	cached "k8s.io/client-go/discovery/cached/memory"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -51,15 +56,6 @@ func (a *EtcdClient) ListEtcds(ctx context.Context, namespace string) (*druidv1a
 	return etcdList, nil
 }
 
-// CreateTypedEtcdClient creates and returns an EtcdClient Interface
-func (f *ClientFactory) CreateTypedEtcdClient() (EtcdClientInterface, error) {
-	clientSet, err := CreateTypedClientSet(f.configFlags)
-	if err != nil {
-		return nil, err
-	}
-	return NewEtcdClient(clientSet.DruidV1alpha1()), nil
-}
-
 // CreateTypedClientSet creates and returns a typed Kubernetes clientset using the provided config flags.
 func CreateTypedClientSet(configFlags *genericclioptions.ConfigFlags) (*druidclientet.Clientset, error) {
 	config, err := configFlags.ToRESTConfig()
@@ -73,4 +69,50 @@ func CreateTypedClientSet(configFlags *genericclioptions.ConfigFlags) (*druidcli
 		return nil, fmt.Errorf("failed to create Kubernetes clientset: %w", err)
 	}
 	return druidclientset, nil
+}
+
+// CreateTypedEtcdClient creates and returns an EtcdClient Interface
+func (f *ClientFactory) CreateTypedEtcdClient() (EtcdClientInterface, error) {
+	clientSet, err := CreateTypedClientSet(f.configFlags)
+	if err != nil {
+		return nil, err
+	}
+	return NewEtcdClient(clientSet.DruidV1alpha1()), nil
+}
+
+// CreateGenericClient builds a composite GenericClient consisting of typed kube client,
+// dynamic client, discovery client, and a cached RESTMapper. This is the primary entry point
+// for commands that need to work with arbitrary resource types like built-ins and CRDs.
+func (f *ClientFactory) CreateGenericClient() (GenericClient, error) {
+	config, err := f.configFlags.ToRESTConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get REST config: %w", err)
+	}
+
+	kubeClient, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create kubernetes clientset: %w", err)
+	}
+
+	dynClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create dynamic client: %w", err)
+	}
+
+	discoClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create discovery client: %w", err)
+	}
+
+	// Build a deferred RESTMapper backed by cached discovery to resolve kinds/resources and short names.
+	cachedDisco := cached.NewMemCacheClient(discoClient)
+	deferredMapper := restmapper.NewDeferredDiscoveryRESTMapper(cachedDisco)
+	expander := restmapper.NewShortcutExpander(deferredMapper, cachedDisco, func(string) {})
+
+	return &genericClient{
+		kube:       kubeClient,
+		dynamic:    dynClient,
+		discovery:  discoClient,
+		restMapper: expander,
+	}, nil
 }

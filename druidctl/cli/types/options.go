@@ -8,7 +8,6 @@ import (
 
 // Options holds all global options and configuration for the CLI
 type Options struct {
-	// Common CLI options
 	ConfigFlags   *genericclioptions.ConfigFlags
 	Verbose       bool
 	AllNamespaces bool

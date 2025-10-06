@@ -25,8 +25,8 @@ type Writer interface {
 	IsVerbose() bool
 }
 
-// OutputService combines formatting and writing for complete output handling
-type OutputService interface {
+// Service combines formatting and writing for complete output handling
+type Service interface {
 	// High-level methods that applications should use
 	Success(message string, params ...string)
 	Error(message string, err error, params ...string)

@@ -33,6 +33,14 @@ func newReconcileCommand(options *types.Options) *cobra.Command {
 				return err
 			}
 
+			// Create typed etcd client
+			etcdClient, err := reconcileCommandCtx.ClientFactory.CreateTypedEtcdClient()
+			if err != nil {
+				reconcileCommandCtx.Output.Error("Unable to create etcd client: ", err)
+				return err
+			}
+			reconcileCommandCtx.EtcdClient = etcdClient
+
 			if reconcileCommandCtx.AllNamespaces {
 				reconcileCommandCtx.Output.Info("Reconciling Etcd resources across all namespaces")
 			} else {
@@ -82,6 +90,14 @@ func newSuspendReconcileCommand(options *types.Options) *cobra.Command {
 				return err
 			}
 
+			// Create typed etcd client
+			etcdClient, err := suspendReconcileCommandCtx.ClientFactory.CreateTypedEtcdClient()
+			if err != nil {
+				suspendReconcileCommandCtx.Output.Error("Unable to create etcd client: ", err)
+				return err
+			}
+			suspendReconcileCommandCtx.EtcdClient = etcdClient
+
 			if suspendReconcileCommandCtx.AllNamespaces {
 				suspendReconcileCommandCtx.Output.Info("Suspending reconciliation for Etcd resources across all namespaces")
 			} else {
@@ -124,6 +140,14 @@ func newResumeReconcileCommand(options *types.Options) *cobra.Command {
 			if err := resumeReconcileCommandCtx.Validate(); err != nil {
 				return err
 			}
+
+			// Create typed etcd client
+			etcdClient, err := resumeReconcileCommandCtx.ClientFactory.CreateTypedEtcdClient()
+			if err != nil {
+				resumeReconcileCommandCtx.Output.Error("Unable to create etcd client: ", err)
+				return err
+			}
+			resumeReconcileCommandCtx.EtcdClient = etcdClient
 
 			if resumeReconcileCommandCtx.AllNamespaces {
 				resumeReconcileCommandCtx.Output.Info("Resuming reconciliation for Etcd resources across all namespaces")

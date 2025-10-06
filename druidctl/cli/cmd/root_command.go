@@ -28,6 +28,8 @@ func Execute() error {
 
 	originalPreRun := rootCmd.PersistentPreRun
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		cmd.SilenceUsage = true
+		cmd.SilenceErrors = true
 		banner.ShowBanner(options.DisableBanner)
 		if originalPreRun != nil {
 			originalPreRun(cmd, args)
@@ -40,5 +42,6 @@ func Execute() error {
 	rootCmd.AddCommand(newRemoveProtectionCommand(options))
 	rootCmd.AddCommand(newSuspendReconcileCommand(options))
 	rootCmd.AddCommand(newResumeReconcileCommand(options))
+	rootCmd.AddCommand(newListResourcesCommand())
 	return rootCmd.Execute()
 }

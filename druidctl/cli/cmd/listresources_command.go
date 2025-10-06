@@ -2,25 +2,12 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/gardener/etcd-druid/druidctl/cli/types"
 	core "github.com/gardener/etcd-druid/druidctl/internal"
 	"github.com/spf13/cobra"
 )
-
-// ⚠️ ⚠️ ⚠️ ⚠️ IMPLEMENTATION UNDERWAY FOR LIST RESOURCES ⚠️ ⚠️ ⚠️ ⚠️
-
-// List all the managed resources for an etcd cluster
-
-// Basically the filter should work with any type of resource
-// pods,sts,svc,cm,pvc,secret,lease,pdb,role,rolebinding,svcaccount,etc
-// identifier: resources have the label: app.kubernetes.io/part-of: <etcd-name>
-// out of these listed resources above, all of them have this label.
-// How many does not have OwnerReferences? pvc,pods,
-
-// so it doesn't matter which resources the user asks for, we do a validation to confirm that such a resource exists first, if not, we throw an error.
-// Now we first proceed to list all the Etcd resources ( either in a single ns or across all ns)
-// For each etcd, we go through the list of resource types asked for, and find any resources that are managed by this particular etcd, as can be queried with the label `app.kubernetes.io/part-of: <etcd-name>`
 
 const defaultFilter = "all"
 
@@ -48,6 +35,21 @@ func newListResourcesCommand() *cobra.Command {
 				return err
 			}
 
+			// Create typed etcd client
+			etcdClient, err := listResourcesCommandCtx.ClientFactory.CreateTypedEtcdClient()
+			if err != nil {
+				listResourcesCommandCtx.Output.Error("Unable to create etcd client: ", err)
+				return err
+			}
+			listResourcesCommandCtx.EtcdClient = etcdClient
+
+			// Create generic etcd client
+			genClient, err := listResourcesCommandCtx.ClientFactory.CreateGenericClient()
+			if err != nil {
+				return fmt.Errorf("failed to create generic kube clients: %w", err)
+			}
+			listResourcesCommandCtx.GenericClient = genClient
+
 			if listResourcesCommandCtx.AllNamespaces {
 				listResourcesCommandCtx.Output.Info("Listing all Managed resources for Etcds across all namespaces")
 			} else {
@@ -63,6 +65,8 @@ func newListResourcesCommand() *cobra.Command {
 			return nil
 		},
 	}
+
+	listResourcesCmd.Flags().StringVarP(&listResourcesCommandCtx.Filter, "filter", "f", defaultFilter, "Comma-separated list of resource types to include (short or full names). Use 'all' for a curated default set.")
 
 	return listResourcesCmd
 }

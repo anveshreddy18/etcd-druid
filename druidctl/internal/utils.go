@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"time"
 
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
 	client "github.com/gardener/etcd-druid/druidctl/client"
@@ -24,4 +25,18 @@ func GetEtcdList(ctx context.Context, cl client.EtcdClientInterface, name, names
 		etcdList.Items = append(etcdList.Items, *etcd)
 	}
 	return etcdList, nil
+}
+
+func shortDuration(d time.Duration) string {
+	if d < time.Minute {
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	}
+	if d < time.Hour {
+		return fmt.Sprintf("%dm", int(d.Minutes()))
+	}
+	if d < 24*time.Hour {
+		return fmt.Sprintf("%dh", int(d.Hours()))
+	}
+	days := int(d.Hours()) / 24
+	return fmt.Sprintf("%dd", days)
 }

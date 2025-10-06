@@ -10,12 +10,12 @@ import (
 
 // CommandContext holds common state and functionality for all commands
 type CommandContext struct {
-	EtcdClient    client.EtcdClientInterface
+	ClientFactory *client.ClientFactory
 	ResourceName  string
 	Namespace     string
 	AllNamespaces bool
 	Verbose       bool
-	Output        output.OutputService
+	Output        output.Service
 }
 
 func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*CommandContext, error) {
@@ -38,14 +38,9 @@ func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*Co
 	}
 
 	clientFactory := client.NewClientFactory(options.ConfigFlags)
-	etcdClient, err := clientFactory.CreateTypedEtcdClient()
-	if err != nil {
-		outputService.Error("Unable to create etcd client: ", err)
-		return nil, err
-	}
 
 	return &CommandContext{
-		EtcdClient:    etcdClient,
+		ClientFactory: clientFactory,
 		ResourceName:  resourceName,
 		Namespace:     namespace,
 		AllNamespaces: allNs,

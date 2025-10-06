@@ -1,2 +1,3 @@
-druid
 druidctl
+bin
+coverage.out

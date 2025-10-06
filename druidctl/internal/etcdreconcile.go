@@ -56,7 +56,7 @@ func ReconcileEtcd(ctx context.Context, reconcileCommandCtx *types.ReconcileComm
 	for result := range resultChan {
 		results = append(results, result)
 		if result.Error == nil {
-			reconcileCommandCtx.Output.Success(fmt.Sprintf("Reconciliation successful in %s", result.Duration), result.Etcd.Name, result.Etcd.Namespace)
+			reconcileCommandCtx.Output.Success(fmt.Sprintf("Reconciliation successful in %s", shortDuration(result.Duration)), result.Etcd.Name, result.Etcd.Namespace)
 		} else {
 			reconcileCommandCtx.Output.Error("Reconciliation failed", result.Error, result.Etcd.Name, result.Etcd.Namespace)
 		}

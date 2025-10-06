@@ -1,8 +1,14 @@
 package types
 
+import (
+	client "github.com/gardener/etcd-druid/druidctl/client"
+)
+
 type ListResourcesCommandContext struct {
 	*CommandContext
-	Filter string
+	EtcdClient    client.EtcdClientInterface
+	GenericClient client.GenericClient
+	Filter        string
 }
 
 func NewListResourcesCommandContext(cmdCtx *CommandContext, filter string) *ListResourcesCommandContext {

@@ -69,6 +69,14 @@ func newRemoveProtectionCommand(options *types.Options) *cobra.Command {
 				return err
 			}
 
+			// Create typed etcd client
+			etcdClient, err := resourceProtectionCtx.ClientFactory.CreateTypedEtcdClient()
+			if err != nil {
+				resourceProtectionCtx.Output.Error("Unable to create etcd client: ", err)
+				return err
+			}
+			resourceProtectionCtx.EtcdClient = etcdClient
+
 			if resourceProtectionCtx.AllNamespaces {
 				resourceProtectionCtx.Output.Info("Removing component protection from Etcds across all namespaces")
 			} else {

@@ -79,11 +79,11 @@ func (m model) addDisableProtectionAnnotationCmd(etcdItem etcdListItem) tea.Cmd 
 	return func() tea.Msg {
 		client := client.NewEtcdClient(m.typedClientset.DruidV1alpha1())
 		cmdCtx := types.CommandContext{
-			EtcdClient:   client,
 			ResourceName: etcdItem.Name,
 			Namespace:    etcdItem.Namespace,
 		}
 		resourceProtectionCtx := types.NewResourceProtectionCommandContext(&cmdCtx)
+		resourceProtectionCtx.EtcdClient = client
 		if err := core.AddDisableProtectionAnnotation(context.TODO(), resourceProtectionCtx); err != nil {
 			return errMsg{err}
 		}
@@ -95,11 +95,11 @@ func (m model) removeProtectionAnnotationCmd(etcdItem etcdListItem) tea.Cmd {
 	return func() tea.Msg {
 		client := client.NewEtcdClient(m.typedClientset.DruidV1alpha1())
 		cmdCtx := types.CommandContext{
-			EtcdClient:   client,
 			ResourceName: etcdItem.Name,
 			Namespace:    etcdItem.Namespace,
 		}
 		resourceProtectionCtx := types.NewResourceProtectionCommandContext(&cmdCtx)
+		resourceProtectionCtx.EtcdClient = client
 		if err := core.RemoveDisableProtectionAnnotation(context.TODO(), resourceProtectionCtx); err != nil {
 			return errMsg{err}
 		}

@@ -1,17 +1,24 @@
 # druidctl
 
-This module provides user-facing interfaces (CLI and TUI) for interacting with the etcd-druid operator in Kubernetes.
+This module provides CLI tool for interacting with the etcd-druid managed Etcd clusters in a Kubernetes cluster.
 
 ## Structure
 - `cli/`   - Cobra-based CLI commands
-- `tui/`   - Bubbletea-based TUI
-- `core/`  - Shared logic for operator interaction
+- `client/` - For generating typed, generic and discovery clients
+- `internal/`  - Shared logic for operator interaction
 - `pkg/`   - Utilities and shared types
 
 ## Getting Started
-- Run `go mod tidy` in this directory after cloning.
-- To build the CLI: `go run ./cli`
-- To run the TUI: `go run ./tui`
+- Run `make plugin-install` in this directory after cloning to make it into a kubectl plugin.
+- Target any K8s cluster and make sure you're able to access it using `kubectl`.
+- Then use it like `kubectl druid ...`.
+- The list of implemented commands are: 
+  - `reconcile`
+  - `suspend-reconcile`
+  - `resume-reconcile`
+  - `remove-component-protection`
+  - `add-component-protection`
+  - `list-resources`
 
 ## Requirements
 - Go 1.24+
