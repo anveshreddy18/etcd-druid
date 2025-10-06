@@ -29,15 +29,16 @@ func Execute() error {
 	originalPreRun := rootCmd.PersistentPreRun
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		banner.ShowBanner(options.DisableBanner)
-
 		if originalPreRun != nil {
 			originalPreRun(cmd, args)
 		}
 	}
 
 	// Add subcommands
-	rootCmd.AddCommand(NewReconcileCommand(options))
+	rootCmd.AddCommand(newReconcileCommand(options))
 	rootCmd.AddCommand(newAddProtectionCommand(options))
 	rootCmd.AddCommand(newRemoveProtectionCommand(options))
+	rootCmd.AddCommand(newSuspendReconcileCommand(options))
+	rootCmd.AddCommand(newResumeReconcileCommand(options))
 	return rootCmd.Execute()
 }

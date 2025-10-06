@@ -9,12 +9,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewReconcileCommand creates the reconcile command
-func NewReconcileCommand(options *types.Options) *cobra.Command {
+// newReconcileCommand creates the reconcile command
+func newReconcileCommand(options *types.Options) *cobra.Command {
 	reconcileCommandCtx := types.NewReconcileCommandContext(nil, false, 5*time.Minute)
 
 	reconcileCmd := &cobra.Command{
-		Use:   "reconcile <etcd-resource-name> --wait-till-ready(optional flag)",
+		Use:   "reconcile <etcd-resource-name> --wait-till-ready(optional flag) --timeout(optional flag)",
 		Short: "Reconcile the mentioned etcd resource",
 		Long:  `Reconcile the mentioned etcd resource. If the flag --wait-till-ready is set, then reconcile only after the Etcd CR is considered ready`,
 		Args:  cobra.MaximumNArgs(1),
@@ -56,4 +56,90 @@ func NewReconcileCommand(options *types.Options) *cobra.Command {
 		"Timeout for the reconciliation process")
 
 	return reconcileCmd
+}
+
+// newSuspendReconcileCommand creates a new suspend reconcile command.
+func newSuspendReconcileCommand(options *types.Options) *cobra.Command {
+	suspendReconcileCommandCtx := types.NewSuspendReconcileCommandContext(nil)
+
+	suspendReconcileCmd := &cobra.Command{
+		Use:   "suspend-reconcile <etcd-resource-name>",
+		Short: "Suspend reconciliation for the mentioned etcd resource",
+		Long:  `Suspend reconciliation for the mentioned etcd resource.`,
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Create command context with all common functionality
+			cmdCtx, err := types.NewCommandContext(cmd, args, options)
+			if err != nil {
+				return err
+			}
+			if err := cmdCtx.Validate(); err != nil {
+				return err
+			}
+
+			suspendReconcileCommandCtx.CommandContext = cmdCtx
+			if err := suspendReconcileCommandCtx.Validate(); err != nil {
+				return err
+			}
+
+			if suspendReconcileCommandCtx.AllNamespaces {
+				suspendReconcileCommandCtx.Output.Info("Suspending reconciliation for Etcd resources across all namespaces")
+			} else {
+				suspendReconcileCommandCtx.Output.Info("Suspending reconciliation for Etcd resource", suspendReconcileCommandCtx.ResourceName, suspendReconcileCommandCtx.Namespace)
+			}
+
+			if err := core.SuspendEtcdReconcile(context.TODO(), suspendReconcileCommandCtx); err != nil {
+				suspendReconcileCommandCtx.Output.Error("Suspending reconciliation failed", err)
+				return err
+			}
+
+			suspendReconcileCommandCtx.Output.Success("Suspending reconciliation completed successfully")
+			return nil
+		},
+	}
+
+	return suspendReconcileCmd
+}
+
+// newResumeReconcileCommand creates a new resume reconcile command.
+func newResumeReconcileCommand(options *types.Options) *cobra.Command {
+	resumeReconcileCommandCtx := types.NewResumeReconcileCommandContext(nil)
+
+	resumeReconcileCmd := &cobra.Command{
+		Use:   "resume-reconcile <etcd-resource-name>",
+		Short: "Resume reconciliation for the mentioned etcd resource(s)",
+		Long:  `Resume reconciliation for the mentioned etcd resource(s).`,
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Create command context with all common functionality
+			cmdCtx, err := types.NewCommandContext(cmd, args, options)
+			if err != nil {
+				return err
+			}
+			if err := cmdCtx.Validate(); err != nil {
+				return err
+			}
+
+			resumeReconcileCommandCtx.CommandContext = cmdCtx
+			if err := resumeReconcileCommandCtx.Validate(); err != nil {
+				return err
+			}
+
+			if resumeReconcileCommandCtx.AllNamespaces {
+				resumeReconcileCommandCtx.Output.Info("Resuming reconciliation for Etcd resources across all namespaces")
+			} else {
+				resumeReconcileCommandCtx.Output.Info("Resuming reconciliation for Etcd resource", resumeReconcileCommandCtx.ResourceName, resumeReconcileCommandCtx.Namespace)
+			}
+
+			if err := core.ResumeEtcdReconcile(context.TODO(), resumeReconcileCommandCtx); err != nil {
+				resumeReconcileCommandCtx.Output.Error("Resuming reconciliation failed", err)
+				return err
+			}
+
+			resumeReconcileCommandCtx.Output.Success("Resuming reconciliation completed successfully")
+			return nil
+		},
+	}
+
+	return resumeReconcileCmd
 }

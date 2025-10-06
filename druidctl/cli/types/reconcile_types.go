@@ -17,7 +17,39 @@ func NewReconcileCommandContext(cmdCtx *CommandContext, waitTillReady bool, time
 	}
 }
 
-func Validate(r *ReconcileCommandContext) error {
+func (r *ReconcileCommandContext) Validate() error {
+	// add validation logic if needed
+	return nil
+}
+
+// SuspendReconcileCommandContext holds state and functionality specific to the suspend-reconcile command
+type SuspendReconcileCommandContext struct {
+	*CommandContext
+}
+
+func NewSuspendReconcileCommandContext(cmdCtx *CommandContext) *SuspendReconcileCommandContext {
+	return &SuspendReconcileCommandContext{
+		CommandContext: cmdCtx,
+	}
+}
+
+func (s *SuspendReconcileCommandContext) Validate() error {
+	// add validation logic if needed
+	return nil
+}
+
+// ResumeReconcileCommandContext holds state and functionality specific to the resume-reconcile command
+type ResumeReconcileCommandContext struct {
+	*CommandContext
+}
+
+func NewResumeReconcileCommandContext(cmdCtx *CommandContext) *ResumeReconcileCommandContext {
+	return &ResumeReconcileCommandContext{
+		CommandContext: cmdCtx,
+	}
+}
+
+func (r *ResumeReconcileCommandContext) Validate() error {
 	// add validation logic if needed
 	return nil
 }
