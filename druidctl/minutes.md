@@ -1,0 +1,11 @@
+->Add examples for how to use the kubectl plugin with the specific subcommand.
+->test the logging on windows machines as well
+-> Don't show banner always, show it only when showing usage.
+-> the cli folder is not needed, just have a cmd folder and group related stuff together.
+->error streams for testing, unit & integration tests need proper error streams.
+->yaml/json output, specific to each command. Printers: https://github.com/kubernetes/cli-runtime/tree/master/pkg/printers, https://github.com/kubernetes/kubectl/tree/master/pkg/cmd/get
+->make pkgs inside the cmd folder for each command, group all related information together. Get rid of the cli folder. All types should ideally be along with the command, except for the common command context
+->the output.Service is not actually a service but just a logger, rename it. 
+->easily consumable output from the cli for each command, ideally in a single screen that keeps updating itself. This command specific output rendering should be specific to this particular command, and they all can use the low-level output component from the charm implementation of the logger. TBH, the charm pkg currently only does logging, but if we want more kinds of output rendering, we need better low-level components, relook at this.
+-> DEEPLY READ CODE FROM THE EXISTING KUBECTL CODE, RECENT GOOD KUBECTL PLUGINS, see what's good & bad, form your own opinions around them and implement them in your code. Reading code is not bad, infact that's the best way of becoming a better developer.
+-> Try making the resume-reconcile & suspend-reconcile as subcommands for the reconcile command itself.
