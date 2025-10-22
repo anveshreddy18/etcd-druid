@@ -1,4 +1,4 @@
-package core
+package listresources
 
 import (
 	"context"
@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gardener/etcd-druid/druidctl/cli/types"
-	"github.com/gardener/etcd-druid/druidctl/pkg/output"
+	"github.com/gardener/etcd-druid/druidctl/pkg/log"
+	"github.com/gardener/etcd-druid/druidctl/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -44,8 +44,14 @@ type etcdResourceSummary struct {
 	Items map[resourceKey][]resourceRef
 }
 
-func ListManagedResources(ctx context.Context, listResourcesCommandCtx *types.ListResourcesCommandContext) error {
-	out := listResourcesCommandCtx.Output
+func (l *listResourcesCommandContext) validate() error {
+	// add validation logic if needed
+	return nil
+}
+
+// execute lists the managed resources for the selected etcd resources based on the filter.
+func (listResourcesCommandCtx *listResourcesCommandContext) execute(ctx context.Context) error {
+	out := listResourcesCommandCtx.Logger
 
 	etcdClient := listResourcesCommandCtx.EtcdClient
 	genClient := listResourcesCommandCtx.GenericClient
@@ -54,17 +60,17 @@ func ListManagedResources(ctx context.Context, listResourcesCommandCtx *types.Li
 	if len(tokens) == 0 || (len(tokens) == 1 && tokens[0] == "all") {
 		tokens = defaultResourceTokens()
 	}
-	resolver, err := NewAPIResourceResolver(genClient.Discovery())
+	resolver, err := newAPIResourceResolver(genClient.Discovery())
 	if err != nil {
 		return fmt.Errorf("failed to initialize resource resolver: %w", err)
 	}
-	metas, err := resolver.Resolve(tokens)
+	metas, err := resolver.resolve(tokens)
 	if err != nil {
 		return err
 	}
 
 	// Identify etcds to operate on
-	etcdList, err := GetEtcdList(ctx, etcdClient, listResourcesCommandCtx.ResourceName, listResourcesCommandCtx.Namespace, listResourcesCommandCtx.AllNamespaces)
+	etcdList, err := utils.GetEtcdList(ctx, etcdClient, listResourcesCommandCtx.ResourceName, listResourcesCommandCtx.Namespace, listResourcesCommandCtx.AllNamespaces)
 	if err != nil {
 		return err
 	}
@@ -172,12 +178,12 @@ func toResourceRef(u *unstructured.Unstructured) resourceRef {
 	}
 }
 
-// renderListResources prints results in a grouped, neat format using the Output service.
-func renderListResources(out output.Service, results []etcdResourceSummary) {
+// renderListResources prints results in a grouped, neat format using the Logger.
+func renderListResources(log log.Logger, results []etcdResourceSummary) {
 	for _, s := range results {
-		out.Header(fmt.Sprintf("Etcd %s/%s", s.Etcd.Namespace, s.Etcd.Name))
+		log.Header(fmt.Sprintf("Etcd %s/%s", s.Etcd.Namespace, s.Etcd.Name))
 		if len(s.Items) == 0 {
-			out.Info("No resources found for selected filters")
+			log.Info("No resources found for selected filters")
 			continue
 		}
 		// Order resource kinds consistently
@@ -194,14 +200,14 @@ func renderListResources(out output.Service, results []etcdResourceSummary) {
 
 		for _, k := range keys {
 			list := s.Items[k]
-			out.RawHeader(fmt.Sprintf("%s (%s.%s/%s): %d", k.Kind, k.Resource, k.Group, k.Version, len(list)))
+			log.RawHeader(fmt.Sprintf("%s (%s.%s/%s): %d", k.Kind, k.Resource, k.Group, k.Version, len(list)))
 			for _, r := range list {
-				age := shortDuration(r.Age)
+				age := utils.ShortDuration(r.Age)
 				ns := r.Namespace
 				if ns == "" {
 					ns = "-"
 				}
-				out.Info(fmt.Sprintf("%s/%s (age %s)", ns, r.Name, age))
+				log.Info(fmt.Sprintf("%s/%s (age %s)", ns, r.Name, age))
 			}
 		}
 	}

@@ -1,4 +1,4 @@
-// Package charm provides output formatting and writing implementations using charmbracelet libraries
+// Package charm provides log output formatting and writing implementations using charmbracelet libraries
 package charm
 
 import (
@@ -9,7 +9,7 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-// CharmWriter implements output.Writer using charmbracelet/log
+// CharmWriter implements log.Writer using charmbracelet/log
 type CharmWriter struct {
 	logger  *log.Logger
 	verbose bool

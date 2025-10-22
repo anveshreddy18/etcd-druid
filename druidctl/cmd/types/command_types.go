@@ -1,10 +1,10 @@
-package types
+package cmd
 
 import (
 	"fmt"
 
 	client "github.com/gardener/etcd-druid/druidctl/client"
-	"github.com/gardener/etcd-druid/druidctl/pkg/output"
+	"github.com/gardener/etcd-druid/druidctl/pkg/log"
 	"github.com/spf13/cobra"
 )
 
@@ -15,7 +15,7 @@ type CommandContext struct {
 	Namespace     string
 	AllNamespaces bool
 	Verbose       bool
-	Output        output.Service
+	Logger        log.Logger
 }
 
 func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*CommandContext, error) {
@@ -23,8 +23,8 @@ func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*Co
 	allNs := options.AllNamespaces
 	verbose := options.Verbose
 
-	outputService := output.NewService(output.OutputTypeCharm)
-	outputService.SetVerbose(verbose)
+	outputLogger := log.NewLogger(log.LogTypeCharm)
+	outputLogger.SetVerbose(verbose)
 
 	resourceName := ""
 	namespace := ""
@@ -34,7 +34,7 @@ func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*Co
 		resourceName = args[0]
 	}
 	if namespace, _, err = options.ConfigFlags.ToRawKubeConfigLoader().Namespace(); err != nil {
-		outputService.Error("Failed to get namespace: ", err)
+		outputLogger.Error("Failed to get namespace: ", err)
 	}
 
 	clientFactory := client.NewClientFactory(options.ConfigFlags)
@@ -45,7 +45,7 @@ func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*Co
 		Namespace:     namespace,
 		AllNamespaces: allNs,
 		Verbose:       verbose,
-		Output:        outputService,
+		Logger:        outputLogger,
 	}, nil
 }
 

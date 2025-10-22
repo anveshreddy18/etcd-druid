@@ -1,4 +1,4 @@
-package core
+package utils
 
 import (
 	"context"
@@ -27,7 +27,7 @@ func GetEtcdList(ctx context.Context, cl client.EtcdClientInterface, name, names
 	return etcdList, nil
 }
 
-func shortDuration(d time.Duration) string {
+func ShortDuration(d time.Duration) string {
 	if d < time.Minute {
 		return fmt.Sprintf("%ds", int(d.Seconds()))
 	}

@@ -1,4 +1,4 @@
-// Package charm provides output formatting and writing implementations using charmbracelet libraries
+// Package charm provides log output formatting and writing implementations using charmbracelet libraries
 package charm
 
 import (
@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// CharmFormatter implements output.Formatter using Lipgloss
+// CharmFormatter implements log.Formatter using Lipgloss
 type CharmFormatter struct {
 	styles struct {
 		Success lipgloss.Style

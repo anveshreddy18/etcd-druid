@@ -1,7 +1,10 @@
 package cmd
 
 import (
-	"github.com/gardener/etcd-druid/druidctl/cli/types"
+	listresources "github.com/gardener/etcd-druid/druidctl/cmd/list-resources"
+	"github.com/gardener/etcd-druid/druidctl/cmd/reconcile"
+	resourceprotection "github.com/gardener/etcd-druid/druidctl/cmd/resource-protection"
+	types "github.com/gardener/etcd-druid/druidctl/cmd/types"
 	"github.com/gardener/etcd-druid/druidctl/pkg/banner"
 	"github.com/spf13/cobra"
 )
@@ -28,7 +31,7 @@ func Execute() error {
 
 	originalPreRun := rootCmd.PersistentPreRun
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
-		cmd.SilenceUsage = true
+		// cmd.SilenceUsage = true
 		cmd.SilenceErrors = true
 		banner.ShowBanner(options.DisableBanner)
 		if originalPreRun != nil {
@@ -37,11 +40,11 @@ func Execute() error {
 	}
 
 	// Add subcommands
-	rootCmd.AddCommand(newReconcileCommand(options))
-	rootCmd.AddCommand(newAddProtectionCommand(options))
-	rootCmd.AddCommand(newRemoveProtectionCommand(options))
-	rootCmd.AddCommand(newSuspendReconcileCommand(options))
-	rootCmd.AddCommand(newResumeReconcileCommand(options))
-	rootCmd.AddCommand(newListResourcesCommand())
+	rootCmd.AddCommand(reconcile.NewReconcileCommand(options))
+	rootCmd.AddCommand(resourceprotection.NewAddProtectionCommand(options))
+	rootCmd.AddCommand(resourceprotection.NewRemoveProtectionCommand(options))
+	rootCmd.AddCommand(reconcile.NewSuspendReconcileCommand(options))
+	rootCmd.AddCommand(reconcile.NewResumeReconcileCommand(options))
+	rootCmd.AddCommand(listresources.NewListResourcesCommand(options))
 	return rootCmd.Execute()
 }

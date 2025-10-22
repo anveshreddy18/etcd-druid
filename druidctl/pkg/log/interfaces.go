@@ -1,8 +1,8 @@
-package output
+package log
 
 import "io"
 
-// Formatter handles styling text for different output types
+// Formatter handles styling text for different log types
 type Formatter interface {
 	FormatSuccess(message string) string
 	FormatError(message string, err error) string
@@ -14,7 +14,7 @@ type Formatter interface {
 	FormatEtcdOperation(operation, etcdName, namespace string, allNamespaces bool) string
 }
 
-// Writer handles output delivery to the underlying logger/output mechanism
+// Writer handles log delivery to the underlying logger mechanism
 type Writer interface {
 	LogInfo(message string)
 	LogError(message string, keyvals ...interface{})
@@ -25,8 +25,8 @@ type Writer interface {
 	IsVerbose() bool
 }
 
-// Service combines formatting and writing for complete output handling
-type Service interface {
+// Logger combines formatting and writing for complete log handling
+type Logger interface {
 	// High-level methods that applications should use
 	Success(message string, params ...string)
 	Error(message string, err error, params ...string)

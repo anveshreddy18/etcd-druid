@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/gardener/etcd-druid/druidctl/cli/cmd"
+	"github.com/gardener/etcd-druid/druidctl/cmd"
 )
 
 func main() {

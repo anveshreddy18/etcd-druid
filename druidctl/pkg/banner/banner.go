@@ -3,7 +3,7 @@ package banner
 import (
 	"strings"
 
-	"github.com/gardener/etcd-druid/druidctl/pkg/output"
+	"github.com/gardener/etcd-druid/druidctl/pkg/log"
 )
 
 var asciiArt = `
@@ -24,11 +24,11 @@ func ShowBanner(disableBanner bool) {
 
 	lines := strings.Split(strings.TrimSpace(asciiArt), "\n")
 
-	outputService := output.NewService(output.OutputTypeCharm)
+	logger := log.NewLogger(log.LogTypeCharm)
 
 	for _, line := range lines {
-		outputService.RawHeader(line)
+		logger.RawHeader(line)
 	}
 
-	outputService.RawHeader("Version: " + Version)
+	logger.RawHeader("Version: " + Version)
 }

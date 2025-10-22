@@ -42,7 +42,7 @@ spec:
     port: 8080
     fullSnapshotSchedule: "0 */24 * * *"
     resources:
-      limits: { cpu: 207m, memory: 1Gi }
+      limits: { cpu: 209m, memory: 1Gi }
       requests: { cpu: 23m, memory: 128Mi }
     garbageCollectionPolicy: Exponential
     garbageCollectionPeriod: 43200s
@@ -74,7 +74,7 @@ spec:
     #     matchLabels:
     #       app: etcd-statefulset
 
-  replicas: 1
+  replicas: 3
   # priorityClassName: priority-class-name
   # storageClass: default
   # storageCapacity: 10Gi

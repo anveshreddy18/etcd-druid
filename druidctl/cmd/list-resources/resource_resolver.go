@@ -1,4 +1,4 @@
-package core
+package listresources
 
 import (
 	"fmt"
@@ -21,8 +21,8 @@ type apiResourceResolver struct {
 	byKind map[string]resourceMeta // kind (singular) -> meta
 }
 
-// NewAPIResourceResolver builds a resolver using the server's preferred resources.
-func NewAPIResourceResolver(disco discovery.DiscoveryInterface) (*apiResourceResolver, error) {
+// newAPIResourceResolver builds a resolver using the server's preferred resources.
+func newAPIResourceResolver(disco discovery.DiscoveryInterface) (*apiResourceResolver, error) {
 	lists, err := disco.ServerPreferredResources()
 	if err != nil && !discovery.IsGroupDiscoveryFailedError(err) {
 		return nil, fmt.Errorf("failed to discover server resources: %w", err)
@@ -76,8 +76,8 @@ func NewAPIResourceResolver(disco discovery.DiscoveryInterface) (*apiResourceRes
 	return r, nil
 }
 
-// Resolve converts tokens (short names, resource names, kinds) into resource metadata list.
-func (r *apiResourceResolver) Resolve(tokens []string) ([]resourceMeta, error) {
+// resolve converts tokens (short names, resource names, kinds) into resource metadata list.
+func (r *apiResourceResolver) resolve(tokens []string) ([]resourceMeta, error) {
 	if len(tokens) == 0 {
 		return nil, fmt.Errorf("no resource tokens provided")
 	}
@@ -116,23 +116,23 @@ func (r *apiResourceResolver) Resolve(tokens []string) ([]resourceMeta, error) {
 		out = append(out, meta)
 	}
 	if len(unknown) > 0 {
-		return nil, &UnknownResourcesError{Tokens: unknown, Known: r.SampleKnown()}
+		return nil, &unknownResourcesError{Tokens: unknown, Known: r.sampleKnown()}
 	}
 	return out, nil
 }
 
-// UnknownResourcesError conveys which tokens failed and a subset of known tokens.
-type UnknownResourcesError struct {
+// unknownResourcesError conveys which tokens failed and a subset of known tokens.
+type unknownResourcesError struct {
 	Tokens []string
 	Known  []string
 }
 
-func (e *UnknownResourcesError) Error() string {
+func (e *unknownResourcesError) Error() string {
 	return fmt.Sprintf("unknown resource tokens: %v; known examples: %v", e.Tokens, e.Known)
 }
 
-// SampleKnown returns a subset of known tokens for hinting.
-func (r *apiResourceResolver) SampleKnown() []string {
+// sampleKnown returns a subset of known tokens for hinting.
+func (r *apiResourceResolver) sampleKnown() []string {
 	out := make([]string, 0, 16)
 	common := []string{"po", "pods", "pod", "sts", "statefulsets", "svc", "services", "cm", "configmaps", "pvc", "secrets", "lease", "leases", "pdb", "role", "rolebinding", "sa", "serviceaccount"}
 	for _, c := range common {

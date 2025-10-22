@@ -1,4 +1,4 @@
-// Package charm provides output formatting and writing implementations using charmbracelet libraries
+// Package charm provides log output formatting and writing implementations using charmbracelet libraries
 package charm
 
 import (
@@ -6,7 +6,7 @@ import (
 	"io"
 )
 
-// CharmService implements output.Service using CharmFormatter and CharmWriter
+// CharmService implements log.Logger using CharmFormatter and CharmWriter
 type CharmService struct {
 	formatter *CharmFormatter
 	writer    *CharmWriter
