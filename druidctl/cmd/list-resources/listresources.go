@@ -13,35 +13,37 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-type resourceKey struct {
-	Group    string
-	Version  string
-	Resource string
-	Kind     string
+type ResourceKey struct {
+	Group    string `json:"group" yaml:"group"`
+	Version  string `json:"version" yaml:"version"`
+	Resource string `json:"resource" yaml:"resource"`
+	Kind     string `json:"kind" yaml:"kind"`
 }
 
-type resourceRef struct {
-	Namespace string
-	Name      string
-	Age       time.Duration
-	Labels    map[string]string
-	OwnerRefs []ownerRefLite
+type ResourceRef struct {
+	Namespace string        `json:"namespace" yaml:"namespace"`
+	Name      string        `json:"name" yaml:"name"`
+	Age       time.Duration `json:"age" yaml:"age"`
 }
 
-type ownerRefLite struct {
-	APIVersion string
-	Kind       string
-	Name       string
+type EtcdRef struct {
+	Name      string `json:"name" yaml:"name"`
+	Namespace string `json:"namespace" yaml:"namespace"`
 }
 
-type etcdRef struct {
-	Name      string
-	Namespace string
+type ResourceListPerKey struct {
+	Key       ResourceKey   `json:"key" yaml:"key"`
+	Resources []ResourceRef `json:"resources" yaml:"resources"`
 }
 
-type etcdResourceSummary struct {
-	Etcd  etcdRef
-	Items map[resourceKey][]resourceRef
+type EtcdResourceResult struct {
+	Etcd  EtcdRef              `json:"etcd" yaml:"etcd"`
+	Items []ResourceListPerKey `json:"items" yaml:"items"`
+}
+
+type Result struct {
+	Etcds []EtcdResourceResult `json:"etcds" yaml:"etcds"`
+	Kind  string               `json:"kind" yaml:"kind"`
 }
 
 func (l *listResourcesCommandContext) validate() error {
@@ -83,12 +85,14 @@ func (listResourcesCommandCtx *listResourcesCommandContext) execute(ctx context.
 		return nil
 	}
 
-	// Collect results per etcd
-	results := make([]etcdResourceSummary, 0, len(etcdList.Items))
+	result := Result{
+		Etcds: make([]EtcdResourceResult, 0, len(etcdList.Items)),
+		Kind:  "EtcdResourceList",
+	}
 	for _, e := range etcdList.Items {
-		summary := etcdResourceSummary{
-			Etcd:  etcdRef{Name: e.Name, Namespace: e.Namespace},
-			Items: map[resourceKey][]resourceRef{},
+		etcdResult := EtcdResourceResult{
+			Etcd:  EtcdRef{Name: e.Name, Namespace: e.Namespace},
+			Items: make([]ResourceListPerKey, 0),
 		}
 
 		selector := fmt.Sprintf("app.kubernetes.io/part-of=%s", e.Name)
@@ -106,33 +110,54 @@ func (listResourcesCommandCtx *listResourcesCommandContext) execute(ctx context.
 			if len(ulist.Items) == 0 {
 				continue
 			}
-			rk := resourceKey{Group: m.GVR.Group, Version: m.GVR.Version, Resource: m.GVR.Resource, Kind: m.Kind}
+			resourceKey := ResourceKey{Group: m.GVR.Group, Version: m.GVR.Version, Resource: m.GVR.Resource, Kind: m.Kind}
 			for _, item := range ulist.Items {
-				summary.Items[rk] = append(summary.Items[rk], toResourceRef(&item))
+				found := false
+				for i, resourceListPerKey := range etcdResult.Items {
+					if resourceListPerKey.Key == resourceKey {
+						etcdResult.Items[i].Resources = append(etcdResult.Items[i].Resources, toResourceRef(&item))
+						found = true
+						break
+					}
+				}
+				if !found {
+					etcdResult.Items = append(etcdResult.Items, ResourceListPerKey{
+						Key:       resourceKey,
+						Resources: []ResourceRef{toResourceRef(&item)},
+					})
+				}
 			}
 		}
 		// Sort within each resource kind by namespace/name for determinism
-		for k := range summary.Items {
-			sort.Slice(summary.Items[k], func(i, j int) bool {
-				ai, aj := summary.Items[k][i], summary.Items[k][j]
+		for k := range etcdResult.Items {
+			sort.Slice(etcdResult.Items[k].Resources, func(i, j int) bool {
+				ai, aj := etcdResult.Items[k].Resources[i], etcdResult.Items[k].Resources[j]
 				if ai.Namespace == aj.Namespace {
 					return ai.Name < aj.Name
 				}
 				return ai.Namespace < aj.Namespace
 			})
 		}
-		results = append(results, summary)
+		result.Etcds = append(result.Etcds, etcdResult)
 	}
 
 	// Sort etcds by namespace/name
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Etcd.Namespace == results[j].Etcd.Namespace {
-			return results[i].Etcd.Name < results[j].Etcd.Name
+	sort.Slice(result.Etcds, func(i, j int) bool {
+		if result.Etcds[i].Etcd.Namespace == result.Etcds[j].Etcd.Namespace {
+			return result.Etcds[i].Etcd.Name < result.Etcds[j].Etcd.Name
 		}
-		return results[i].Etcd.Namespace < results[j].Etcd.Namespace
+		return result.Etcds[i].Etcd.Namespace < result.Etcds[j].Etcd.Namespace
 	})
-
-	renderListResources(out, results)
+	if listResourcesCommandCtx.Formatter != nil {
+		var outputData []byte
+		outputData, err = listResourcesCommandCtx.Formatter.Format(result)
+		if err != nil {
+			return fmt.Errorf("failed to marshal result to desired format: %w", err)
+		}
+		fmt.Printf("%s\n", string(outputData))
+		return nil
+	}
+	renderListResources(out, result.Etcds)
 	return nil
 }
 
@@ -163,44 +188,39 @@ func defaultResourceTokens() []string {
 	return []string{"po", "sts", "svc", "cm", "secret", "pvc", "lease", "pdb", "role", "rolebinding", "sa"}
 }
 
-func toResourceRef(u *unstructured.Unstructured) resourceRef {
-	var owners []ownerRefLite
-	for _, o := range u.GetOwnerReferences() {
-		owners = append(owners, ownerRefLite{APIVersion: o.APIVersion, Kind: o.Kind, Name: o.Name})
-	}
+func toResourceRef(u *unstructured.Unstructured) ResourceRef {
 	age := time.Since(u.GetCreationTimestamp().Time)
-	return resourceRef{
+	return ResourceRef{
 		Namespace: u.GetNamespace(),
 		Name:      u.GetName(),
 		Age:       age,
-		Labels:    u.GetLabels(),
-		OwnerRefs: owners,
 	}
 }
 
 // renderListResources prints results in a grouped, neat format using the Logger.
-func renderListResources(log log.Logger, results []etcdResourceSummary) {
-	for _, s := range results {
-		log.Header(fmt.Sprintf("Etcd %s/%s", s.Etcd.Namespace, s.Etcd.Name))
-		if len(s.Items) == 0 {
+func renderListResources(log log.Logger, results []EtcdResourceResult) {
+	for _, etcdResourceResult := range results {
+		log.Header(fmt.Sprintf("Etcd %s/%s", etcdResourceResult.Etcd.Namespace, etcdResourceResult.Etcd.Name))
+		if len(etcdResourceResult.Items) == 0 {
 			log.Info("No resources found for selected filters")
 			continue
 		}
 		// Order resource kinds consistently
-		keys := make([]resourceKey, 0, len(s.Items))
-		for k := range s.Items {
-			keys = append(keys, k)
-		}
-		sort.Slice(keys, func(i, j int) bool {
-			if keys[i].Kind == keys[j].Kind {
-				return keys[i].Resource < keys[j].Resource
+		// keys := make([]ResourceKey, 0, len(etcdResourceResult.Items))
+		// for _, resourceListPerKey := range etcdResourceResult.Items {
+		// 	keys = append(keys, resourceListPerKey.Key)
+		// }
+		keyList := etcdResourceResult.Items
+		sort.Slice(keyList, func(i, j int) bool {
+			if keyList[i].Key.Kind == keyList[j].Key.Kind {
+				return keyList[i].Key.Resource < keyList[j].Key.Resource
 			}
-			return keys[i].Kind < keys[j].Kind
+			return keyList[i].Key.Kind < keyList[j].Key.Kind
 		})
 
-		for _, k := range keys {
-			list := s.Items[k]
-			log.RawHeader(fmt.Sprintf("%s (%s.%s/%s): %d", k.Kind, k.Resource, k.Group, k.Version, len(list)))
+		for _, resourceKey := range keyList {
+			list := resourceKey.Resources
+			log.RawHeader(fmt.Sprintf("%s (%s.%s/%s): %d", resourceKey.Key.Kind, resourceKey.Key.Resource, resourceKey.Key.Group, resourceKey.Key.Version, len(list)))
 			for _, r := range list {
 				age := utils.ShortDuration(r.Age)
 				ns := r.Namespace

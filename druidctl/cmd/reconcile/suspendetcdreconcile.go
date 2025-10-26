@@ -16,6 +16,9 @@ type suspendReconcileResult struct {
 
 func (suspendCtx *suspendReconcileCommandContext) validate() error {
 	// add validation logic if needed
+	if suspendCtx.Formatter != nil {
+		return fmt.Errorf("output formatting is not supported for suspend-reconcile command")
+	}
 	return nil
 }
 

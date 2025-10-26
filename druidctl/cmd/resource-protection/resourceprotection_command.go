@@ -7,6 +7,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	addProtectionExample = `
+		# Add component protection to an Etcd resource named "my-etcd" in the default namespace
+		druidctl add-component-protection my-etcd --namespace default
+		
+		# Add component protection to all Etcd resources in all namespaces
+		druidctl add-component-protection my-etcd --all-namespaces`
+
+	removeProtectionExample = `
+		# Remove component protection from an Etcd resource named "my-etcd" in the default namespace
+		druidctl remove-component-protection my-etcd --namespace default
+		
+		# Remove component protection from all Etcd resources in all namespaces
+		druidctl remove-component-protection my-etcd --all-namespaces`
+)
+
 // Create add-component-protection subcommand
 func NewAddProtectionCommand(options *types.Options) *cobra.Command {
 	return &cobra.Command{
@@ -14,7 +30,8 @@ func NewAddProtectionCommand(options *types.Options) *cobra.Command {
 		Short: "Adds resource protection to all managed components for a given etcd cluster",
 		Long: `Adds resource protection to all managed components for a given etcd cluster.
 			   NOTE: This will only have effect if resource protection webhook has been enabled when deploying etcd-druid.`,
-		Args: cobra.MaximumNArgs(1),
+		Example: addProtectionExample,
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resourceProtectionCtx, err := getResourceProtection(cmd, args, options)
 			if err != nil {
@@ -45,7 +62,8 @@ func NewRemoveProtectionCommand(options *types.Options) *cobra.Command {
 		Short: "Removes resource protection for all managed components for a given etcd cluster",
 		Long: `Removes resource protection for all managed components for a given etcd cluster.
 			   NOTE: This will only have effect if resource protection webhook has been enabled when deploying etcd-druid.`,
-		Args: cobra.MaximumNArgs(1),
+		Example: removeProtectionExample,
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resourceProtectionCtx, err := getResourceProtection(cmd, args, options)
 			if err != nil {

@@ -33,7 +33,7 @@ func Execute() error {
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		// cmd.SilenceUsage = true
 		cmd.SilenceErrors = true
-		banner.ShowBanner(options.DisableBanner)
+		banner.ShowBanner(rootCmd, cmd, options.DisableBanner)
 		if originalPreRun != nil {
 			originalPreRun(cmd, args)
 		}

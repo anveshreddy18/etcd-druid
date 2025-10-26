@@ -14,18 +14,54 @@ const (
 	defaultTimeout = 5 * time.Minute
 )
 
+var (
+	reconcileExample = `
+		# Reconcile an Etcd resource named "my-etcd" in the default namespace
+		druidctl reconcile my-etcd --namespace default
+		
+		# Reconcile an Etcd resource named "my-etcd" in all namespaces
+		druidctl reconcile my-etcd --all-namespaces
+		
+		# Reconcile an Etcd resource named "my-etcd" in the default namespace and wait until it's ready
+		druidctl reconcile my-etcd --namespace default --wait-till-ready
+
+		# Reconcile an Etcd resource named "my-etcd" in the default namespace with a custom timeout
+		druidctl reconcile my-etcd --namespace default --wait-till-ready --timeout=10m`
+
+	suspendReconcileExample = `
+		# Suspend reconciliation for an Etcd resource named "my-etcd" in the default namespace
+		druidctl suspend-reconcile my-etcd --namespace default
+		
+		# Suspend reconciliation for an Etcd resource named "my-etcd" in all namespaces
+		druidctl suspend-reconcile my-etcd --all-namespaces`
+
+	resumeReconcileExample = `
+		# Resume reconciliation for an Etcd resource named "my-etcd" in the default namespace
+		druidctl resume-reconcile my-etcd --namespace default
+		
+		# Resume reconciliation for an Etcd resource named "my-etcd" in all namespaces
+		druidctl resume-reconcile my-etcd --all-namespaces`
+)
+
+// group the Use, Short, Long and Example for the reconcile commands into a structure
+type reconcileCommandInfo struct {
+	use     string
+	short   string
+	long    string
+	example string
+}
+
 func newReconcileBaseCommand(
-	use string,
-	short string,
-	long string,
+	cmdInfo *reconcileCommandInfo,
 	options *types.Options,
 	createReconcileContext func(*types.CommandContext) (reconcileContext, error),
 ) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Long:  long,
-		Args:  cobra.MaximumNArgs(1),
+		Use:     cmdInfo.use,
+		Short:   cmdInfo.short,
+		Long:    cmdInfo.long,
+		Example: cmdInfo.example,
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Create command context with all common functionality
 			cmdCtx, err := types.NewCommandContext(cmd, args, options)
@@ -41,21 +77,21 @@ func newReconcileBaseCommand(
 				return err
 			}
 			if err := reconcileContext.validate(); err != nil {
-				cmdCtx.Logger.Error(fmt.Sprintf("%s validation failed", getOperationName(use)), err)
+				cmdCtx.Logger.Error(fmt.Sprintf("%s validation failed", getOperationName(cmdInfo.use)), err)
 				return err
 			}
 
 			if cmdCtx.AllNamespaces {
-				cmdCtx.Logger.Info(fmt.Sprintf("%s Etcd resources across all namespaces", getOperationName(use)))
+				cmdCtx.Logger.Info(fmt.Sprintf("%s Etcd resources across all namespaces", getOperationName(cmdInfo.use)))
 			} else {
-				cmdCtx.Logger.Info(fmt.Sprintf("%s Etcd resource", getOperationName(use)), cmdCtx.ResourceName, cmdCtx.Namespace)
+				cmdCtx.Logger.Info(fmt.Sprintf("%s Etcd resource", getOperationName(cmdInfo.use)), cmdCtx.ResourceName, cmdCtx.Namespace)
 			}
 
 			if err := reconcileContext.execute(context.TODO()); err != nil {
-				cmdCtx.Logger.Error(fmt.Sprintf("%s failed", getOperationName(use)), err)
+				cmdCtx.Logger.Error(fmt.Sprintf("%s failed", getOperationName(cmdInfo.use)), err)
 				return err
 			}
-			cmdCtx.Logger.Success(fmt.Sprintf("%s completed successfully", getOperationName(use)))
+			cmdCtx.Logger.Success(fmt.Sprintf("%s completed successfully", getOperationName(cmdInfo.use)))
 			return nil
 		},
 	}
@@ -67,10 +103,15 @@ func NewReconcileCommand(options *types.Options) *cobra.Command {
 	var waitTillReady bool
 	var timeout time.Duration = defaultTimeout
 
+	cmdInfo := &reconcileCommandInfo{
+		use:     "reconcile <etcd-resource-name> --wait-till-ready(optional flag) --timeout(optional flag)",
+		short:   "Reconcile the mentioned etcd resource",
+		long:    "Reconcile the mentioned etcd resource. If the flag --wait-till-ready is set, then reconcile only after the Etcd CR is considered ready",
+		example: reconcileExample,
+	}
+
 	reconcileCmd := newReconcileBaseCommand(
-		"reconcile <etcd-resource-name> --wait-till-ready(optional flag) --timeout(optional flag)",
-		"Reconcile the mentioned etcd resource",
-		`Reconcile the mentioned etcd resource. If the flag --wait-till-ready is set, then reconcile only after the Etcd CR is considered ready`,
+		cmdInfo,
 		options,
 		func(cmdCtx *types.CommandContext) (reconcileContext, error) {
 			etcdClient, err := cmdCtx.ClientFactory.CreateTypedEtcdClient()
@@ -95,10 +136,14 @@ func NewReconcileCommand(options *types.Options) *cobra.Command {
 
 // NewSuspendReconcileCommand creates a new suspend reconcile command.
 func NewSuspendReconcileCommand(options *types.Options) *cobra.Command {
+	cmdInfo := &reconcileCommandInfo{
+		use:     "suspend-reconcile <etcd-resource-name>",
+		short:   "Suspend reconciliation for the mentioned etcd resource",
+		long:    "Suspend reconciliation for the mentioned etcd resource.",
+		example: suspendReconcileExample,
+	}
 	suspendReconcileCmd := newReconcileBaseCommand(
-		"suspend-reconcile <etcd-resource-name>",
-		"Suspend reconciliation for the mentioned etcd resource",
-		"Suspend reconciliation for the mentioned etcd resource.",
+		cmdInfo,
 		options,
 		func(cmdCtx *types.CommandContext) (reconcileContext, error) {
 			etcdClient, err := cmdCtx.ClientFactory.CreateTypedEtcdClient()
@@ -117,10 +162,14 @@ func NewSuspendReconcileCommand(options *types.Options) *cobra.Command {
 
 // NewResumeReconcileCommand creates a new resume reconcile command.
 func NewResumeReconcileCommand(options *types.Options) *cobra.Command {
+	cmdInfo := &reconcileCommandInfo{
+		use:     "resume-reconcile <etcd-resource-name>",
+		short:   "Resume reconciliation for the mentioned etcd resource",
+		long:    "Resume reconciliation for the mentioned etcd resource.",
+		example: resumeReconcileExample,
+	}
 	resumeReconcileCmd := newReconcileBaseCommand(
-		"resume-reconcile <etcd-resource-name>",
-		"Resume reconciliation for the mentioned etcd resource",
-		"Resume reconciliation for the mentioned etcd resource.",
+		cmdInfo,
 		options,
 		func(cmdCtx *types.CommandContext) (reconcileContext, error) {
 			etcdClient, err := cmdCtx.ClientFactory.CreateTypedEtcdClient()
@@ -141,9 +190,9 @@ func getOperationName(commandUse string) string {
 	command := strings.Split(commandUse, " ")[0]
 	switch command {
 	case "suspend-reconcile":
-		return "Suspending reconciliation for"
+		return "Suspending reconciliation"
 	case "resume-reconcile":
-		return "Resuming reconciliation for"
+		return "Resuming reconciliation"
 	case "reconcile":
 		return "Reconciling"
 	}

@@ -5,6 +5,7 @@ import (
 
 	client "github.com/gardener/etcd-druid/druidctl/client"
 	"github.com/gardener/etcd-druid/druidctl/pkg/log"
+	"github.com/gardener/etcd-druid/druidctl/pkg/printer"
 	"github.com/spf13/cobra"
 )
 
@@ -16,6 +17,7 @@ type CommandContext struct {
 	AllNamespaces bool
 	Verbose       bool
 	Logger        log.Logger
+	Formatter     printer.Formatter
 }
 
 func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*CommandContext, error) {
@@ -26,9 +28,15 @@ func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*Co
 	outputLogger := log.NewLogger(log.LogTypeCharm)
 	outputLogger.SetVerbose(verbose)
 
+	var err error
+	formatter, err := printer.NewFormatter(options.OutputFormat)
+	if err != nil {
+		outputLogger.Error("Failed to create formatter: ", err)
+		return nil, err
+	}
+
 	resourceName := ""
 	namespace := ""
-	var err error
 
 	if len(args) > 0 {
 		resourceName = args[0]
@@ -46,6 +54,7 @@ func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*Co
 		AllNamespaces: allNs,
 		Verbose:       verbose,
 		Logger:        outputLogger,
+		Formatter:     formatter,
 	}, nil
 }
 

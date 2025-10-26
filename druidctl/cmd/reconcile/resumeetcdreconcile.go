@@ -16,7 +16,9 @@ type resumeReconcileResult struct {
 }
 
 func (resumeCtx *resumeReconcileCommandContext) validate() error {
-	// add validation logic if needed
+	if resumeCtx.Formatter != nil {
+		return fmt.Errorf("output formatting is not supported for resume-reconcile command")
+	}
 	return nil
 }
 

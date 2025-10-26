@@ -10,15 +10,35 @@ import (
 
 const defaultFilter = "all"
 
+var (
+	example = `
+		# List all managed resources for the etcd resource named 'my-etcd' in the 'default' namespace
+		druidctl list-resources my-etcd --namespace default
+
+		# List all managed resources for all etcd resources across all namespaces
+		druidctl list-resources --all-namespaces
+
+		# List only the Secrets and ConfigMaps managed resources for the etcd resource named 'my-etcd' in the 'default' namespace
+		druidctl list-resources my-etcd --namespace default --filter=secrets,configmaps
+
+		# List all managed resources for the etcd resource named 'my-etcd' in the 'default' namespace in JSON format
+		druidctl list-resources my-etcd --namespace default --output=json
+		
+		# List all managed resources for all etcd resources across all namespaces in YAML format
+		druidctl list-resources --all-namespaces --output=yaml
+	`
+)
+
 // NewListResourcesCommand creates the list-resources command
 func NewListResourcesCommand(options *types.Options) *cobra.Command {
 	listResourcesCommandCtx := newListResourcesCommandContext(nil, defaultFilter)
 
 	listResourcesCmd := &cobra.Command{
-		Use:   "list-resources <etcd-resource-name> --filter=<comma separated types> (optional flag)",
-		Short: "List managed resources for an etcd cluster filtered by the specified types",
-		Long:  `List managed resources for an etcd cluster filtered by the specified types. If no types are specified, all managed resources will be listed.`,
-		Args:  cobra.MaximumNArgs(1),
+		Use:     "list-resources <etcd-resource-name> --filter=<comma separated types> (optional flag) --output=<output-format> (optional flag)",
+		Short:   "List managed resources for an etcd cluster filtered by the specified types",
+		Long:    `List managed resources for an etcd cluster filtered by the specified types. If no types are specified, all managed resources will be listed.`,
+		Args:    cobra.MaximumNArgs(1),
+		Example: example,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Create command context with all common functionality
 			cmdCtx, err := types.NewCommandContext(cmd, args, options)

@@ -16,10 +16,13 @@ type reconcileResult struct {
 	Duration time.Duration
 }
 
-func (r *reconcileCommandContext) validate() error {
+func (reconcileCommandCtx *reconcileCommandContext) validate() error {
 	// timeout is only valid if wait-till-ready is set
-	if !r.waitTillReady && r.timeout != defaultTimeout {
+	if !reconcileCommandCtx.waitTillReady && reconcileCommandCtx.timeout != defaultTimeout {
 		return fmt.Errorf("cannot specify --timeout/-t without --wait-till-ready/-w")
+	}
+	if reconcileCommandCtx.Formatter != nil {
+		return fmt.Errorf("output formatting is not supported for reconcile command")
 	}
 	return nil
 }

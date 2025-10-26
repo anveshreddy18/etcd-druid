@@ -12,6 +12,7 @@ type Options struct {
 	Verbose       bool
 	AllNamespaces bool
 	DisableBanner bool
+	OutputFormat  string
 }
 
 // NewOptions returns a new Options instance with default values
@@ -28,4 +29,5 @@ func (o *Options) AddFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVarP(&o.AllNamespaces, "all-namespaces", "A", false,
 		"If present, list the requested object(s) across all namespaces")
 	cmd.PersistentFlags().BoolVar(&o.DisableBanner, "no-banner", false, "Disable the CLI banner")
+	cmd.PersistentFlags().StringVarP(&o.OutputFormat, "output", "o", "", "Output format. One of: json, yaml")
 }

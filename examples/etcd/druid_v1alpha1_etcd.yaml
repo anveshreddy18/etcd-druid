@@ -2,7 +2,7 @@ apiVersion: druid.gardener.cloud/v1alpha1
 kind: Etcd
 metadata:
   name: etcd-test-new
-  # namespace: anvesh
+  namespace: anvesh
   labels:
     app: etcd-statefulset
     gardener.cloud/role: controlplane
