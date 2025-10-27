@@ -8,8 +8,8 @@ func DefaultService() Logger {
 	return charm.NewCharmService()
 }
 
-func NewLogger(serviceType LogType) Logger {
-	switch serviceType {
+func NewLogger(logType LogType) Logger {
+	switch logType {
 	case LogTypeCharm:
 		return charm.NewCharmService()
 	default:

@@ -1,7 +1,7 @@
 package resourceprotection
 
 import (
-	client "github.com/gardener/etcd-druid/druidctl/client"
+	"github.com/gardener/etcd-druid/druidctl/client"
 	types "github.com/gardener/etcd-druid/druidctl/cmd/types"
 )
 

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
-	client "github.com/gardener/etcd-druid/druidctl/client"
+	"github.com/gardener/etcd-druid/druidctl/client"
 )
 
 func GetEtcdList(ctx context.Context, cl client.EtcdClientInterface, name, namespace string, allNamespaces bool) (*druidv1alpha1.EtcdList, error) {

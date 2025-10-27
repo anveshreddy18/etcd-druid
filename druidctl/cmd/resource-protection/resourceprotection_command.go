@@ -98,7 +98,7 @@ func getResourceProtection(cmd *cobra.Command, args []string, options *types.Opt
 	}
 
 	// Create typed etcd client
-	etcdClient, err := cmdCtx.ClientFactory.CreateTypedEtcdClient()
+	etcdClient, err := options.ClientFactory.CreateTypedEtcdClient()
 	if err != nil {
 		cmdCtx.Logger.Error("Unable to create etcd client: ", err)
 		return nil, err

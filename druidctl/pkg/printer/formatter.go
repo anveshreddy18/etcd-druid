@@ -7,10 +7,17 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// Formatter defines an interface for formatting data into various output formats.
 type Formatter interface {
 	Format(data interface{}) ([]byte, error)
 }
 
+// =======================
+// JSON Formatter
+// =======================
+
+// JSONFormatter formats data as JSON.
+// Indent controls whether the output is pretty-printed.
 type JSONFormatter struct {
 	Indent bool
 }
@@ -22,12 +29,23 @@ func (f *JSONFormatter) Format(data interface{}) ([]byte, error) {
 	return json.Marshal(data)
 }
 
+// =======================
+// YAML Formatter
+// =======================
+
+// YAMLFormatter formats data as YAML.
 type YAMLFormatter struct{}
 
 func (f *YAMLFormatter) Format(data interface{}) ([]byte, error) {
 	return yaml.Marshal(data)
 }
 
+// =======================
+// Table Formatter
+// =======================
+
+// TableFormatter formats data as a table.
+// (Implementation to be added)
 type TableFormatter struct{}
 
 func (f *TableFormatter) Format(data interface{}) ([]byte, error) {
@@ -35,17 +53,22 @@ func (f *TableFormatter) Format(data interface{}) ([]byte, error) {
 	return nil, nil
 }
 
-func NewFormatter(format string) (Formatter, error) {
+// =======================
+// Formatter Factory
+// =======================
+
+// NewFormatter creates a new Formatter based on the specified output format.
+func NewFormatter(format OutputFormat) (Formatter, error) {
 	switch format {
-	case "json":
+	case OutputTypeJSON:
 		return &JSONFormatter{Indent: true}, nil
-	case "json-raw":
+	case OutputTypeJSONRaw:
 		return &JSONFormatter{Indent: false}, nil
-	case "yaml":
+	case OutputTypeYAML:
 		return &YAMLFormatter{}, nil
-	case "":
-		return nil, nil // No formatting
+	case OutputTypeNone:
+		return nil, nil
 	default:
-		return nil, fmt.Errorf("unknown format: %s", format)
+		return nil, fmt.Errorf("unknown format: %s", string(format))
 	}
 }

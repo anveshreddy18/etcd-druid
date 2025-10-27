@@ -1,4 +1,4 @@
-package core
+package client
 
 import (
 	"context"
@@ -11,6 +11,11 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 )
+
+type Factory interface {
+	CreateTypedEtcdClient() (EtcdClientInterface, error)
+	CreateGenericClient() (GenericClientInterface, error)
+}
 
 type ClientFactory struct {
 	configFlags *genericclioptions.ConfigFlags
@@ -34,8 +39,8 @@ func NewEtcdClient(client v1alpha1.DruidV1alpha1Interface) EtcdClientInterface {
 	return &EtcdClient{client: client}
 }
 
-// GenericClient exposes commonly used Kubernetes clients in one place.
-type GenericClient interface {
+// GenericClientInterface exposes commonly used Kubernetes clients in one place.
+type GenericClientInterface interface {
 	// Kube returns the typed Kubernetes clientset (core/built-in APIs).
 	Kube() kubernetes.Interface
 	// Dynamic returns the dynamic client for arbitrary resources (including CRDs).

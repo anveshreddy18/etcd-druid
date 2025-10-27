@@ -54,8 +54,10 @@ func NewListResourcesCommand(options *types.Options) *cobra.Command {
 				return err
 			}
 
+			listResourcesCommandCtx.Logger.SetOutput(options.IOStreams.Out)
+
 			// Create typed etcd client
-			etcdClient, err := listResourcesCommandCtx.ClientFactory.CreateTypedEtcdClient()
+			etcdClient, err := options.ClientFactory.CreateTypedEtcdClient()
 			if err != nil {
 				listResourcesCommandCtx.Logger.Error("Unable to create etcd client: ", err)
 				return err
@@ -63,7 +65,7 @@ func NewListResourcesCommand(options *types.Options) *cobra.Command {
 			listResourcesCommandCtx.EtcdClient = etcdClient
 
 			// Create generic etcd client
-			genClient, err := listResourcesCommandCtx.ClientFactory.CreateGenericClient()
+			genClient, err := options.ClientFactory.CreateGenericClient()
 			if err != nil {
 				return fmt.Errorf("failed to create generic kube clients: %w", err)
 			}

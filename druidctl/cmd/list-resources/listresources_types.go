@@ -8,7 +8,7 @@ import (
 type listResourcesCommandContext struct {
 	*types.CommandContext
 	EtcdClient    client.EtcdClientInterface
-	GenericClient client.GenericClient
+	GenericClient client.GenericClientInterface
 	Filter        string
 }
 

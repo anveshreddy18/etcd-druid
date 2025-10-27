@@ -1,4 +1,4 @@
-package core
+package client
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"time"
 
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
-	druidclientet "github.com/gardener/etcd-druid/client/clientset/versioned"
+	druidclientset "github.com/gardener/etcd-druid/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -57,18 +57,18 @@ func (a *EtcdClient) ListEtcds(ctx context.Context, namespace string) (*druidv1a
 }
 
 // CreateTypedClientSet creates and returns a typed Kubernetes clientset using the provided config flags.
-func CreateTypedClientSet(configFlags *genericclioptions.ConfigFlags) (*druidclientet.Clientset, error) {
+func CreateTypedClientSet(configFlags *genericclioptions.ConfigFlags) (*druidclientset.Clientset, error) {
 	config, err := configFlags.ToRESTConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get REST config: %w", err)
 	}
 
 	// Create a typed Kubernetes clientset for Druid managed resources
-	druidclientset, err := druidclientet.NewForConfig(config)
+	typedClientSet, err := druidclientset.NewForConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Kubernetes clientset: %w", err)
 	}
-	return druidclientset, nil
+	return typedClientSet, nil
 }
 
 // CreateTypedEtcdClient creates and returns an EtcdClient Interface
@@ -83,7 +83,7 @@ func (f *ClientFactory) CreateTypedEtcdClient() (EtcdClientInterface, error) {
 // CreateGenericClient builds a composite GenericClient consisting of typed kube client,
 // dynamic client, discovery client, and a cached RESTMapper. This is the primary entry point
 // for commands that need to work with arbitrary resource types like built-ins and CRDs.
-func (f *ClientFactory) CreateGenericClient() (GenericClient, error) {
+func (f *ClientFactory) CreateGenericClient() (GenericClientInterface, error) {
 	config, err := f.configFlags.ToRESTConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get REST config: %w", err)

@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	client "github.com/gardener/etcd-druid/druidctl/client"
 	"github.com/gardener/etcd-druid/druidctl/pkg/log"
 	"github.com/gardener/etcd-druid/druidctl/pkg/printer"
 	"github.com/spf13/cobra"
@@ -11,7 +10,6 @@ import (
 
 // CommandContext holds common state and functionality for all commands
 type CommandContext struct {
-	ClientFactory *client.ClientFactory
 	ResourceName  string
 	Namespace     string
 	AllNamespaces bool
@@ -25,7 +23,7 @@ func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*Co
 	allNs := options.AllNamespaces
 	verbose := options.Verbose
 
-	outputLogger := log.NewLogger(log.LogTypeCharm)
+	outputLogger := log.NewLogger(options.LogType)
 	outputLogger.SetVerbose(verbose)
 
 	var err error
@@ -45,10 +43,7 @@ func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*Co
 		outputLogger.Error("Failed to get namespace: ", err)
 	}
 
-	clientFactory := client.NewClientFactory(options.ConfigFlags)
-
 	return &CommandContext{
-		ClientFactory: clientFactory,
 		ResourceName:  resourceName,
 		Namespace:     namespace,
 		AllNamespaces: allNs,

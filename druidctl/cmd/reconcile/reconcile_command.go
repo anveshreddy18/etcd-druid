@@ -114,7 +114,7 @@ func NewReconcileCommand(options *types.Options) *cobra.Command {
 		cmdInfo,
 		options,
 		func(cmdCtx *types.CommandContext) (reconcileContext, error) {
-			etcdClient, err := cmdCtx.ClientFactory.CreateTypedEtcdClient()
+			etcdClient, err := options.ClientFactory.CreateTypedEtcdClient()
 			if err != nil {
 				cmdCtx.Logger.Error("Unable to create etcd client: ", err)
 				return nil, err
@@ -146,7 +146,7 @@ func NewSuspendReconcileCommand(options *types.Options) *cobra.Command {
 		cmdInfo,
 		options,
 		func(cmdCtx *types.CommandContext) (reconcileContext, error) {
-			etcdClient, err := cmdCtx.ClientFactory.CreateTypedEtcdClient()
+			etcdClient, err := options.ClientFactory.CreateTypedEtcdClient()
 			if err != nil {
 				cmdCtx.Logger.Error("Unable to create etcd client: ", err)
 				return nil, err
@@ -172,7 +172,7 @@ func NewResumeReconcileCommand(options *types.Options) *cobra.Command {
 		cmdInfo,
 		options,
 		func(cmdCtx *types.CommandContext) (reconcileContext, error) {
-			etcdClient, err := cmdCtx.ClientFactory.CreateTypedEtcdClient()
+			etcdClient, err := options.ClientFactory.CreateTypedEtcdClient()
 			if err != nil {
 				cmdCtx.Logger.Error("Unable to create etcd client: ", err)
 				return nil, err
