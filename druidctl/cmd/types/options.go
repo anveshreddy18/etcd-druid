@@ -12,8 +12,8 @@ import (
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 )
 
-// Options holds all global options and configuration for the CLI
-type Options struct {
+// GlobalOptions holds all global options and configuration for the CLI
+type GlobalOptions struct {
 	Verbose       bool
 	AllNamespaces bool
 	DisableBanner bool
@@ -27,8 +27,8 @@ type Options struct {
 }
 
 // NewOptions returns a new Options instance with default values
-func NewOptions() *Options {
-	return &Options{
+func NewOptions() *GlobalOptions {
+	return &GlobalOptions{
 		OutputFormat:  printer.OutputTypeNone,
 		LogType:       log.LogTypeCharm,
 		ConfigFlags:   pkg.GetConfigFlags(),
@@ -38,7 +38,7 @@ func NewOptions() *Options {
 }
 
 // AddFlags adds flags to the specified command
-func (o *Options) AddFlags(cmd *cobra.Command) {
+func (o *GlobalOptions) AddFlags(cmd *cobra.Command) {
 	o.ConfigFlags.AddFlags(cmd.PersistentFlags())
 	cmd.PersistentFlags().BoolVarP(&o.Verbose, "verbose", "v", false, "Enable verbose output")
 	cmd.PersistentFlags().BoolVarP(&o.AllNamespaces, "all-namespaces", "A", false,

@@ -12,8 +12,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// Factory is the main interface for creating all types of clients needed by commands
 type Factory interface {
-	CreateTypedEtcdClient() (EtcdClientInterface, error)
+	// CreateEtcdClient creates a client for Etcd custom resources
+	CreateEtcdClient() (EtcdClientInterface, error)
+	// CreateGenericClient creates a composite client for generic k8s operations
 	CreateGenericClient() (GenericClientInterface, error)
 }
 

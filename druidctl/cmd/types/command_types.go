@@ -3,9 +3,11 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/gardener/etcd-druid/druidctl/client"
 	"github.com/gardener/etcd-druid/druidctl/pkg/log"
 	"github.com/gardener/etcd-druid/druidctl/pkg/printer"
 	"github.com/spf13/cobra"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 )
 
 // CommandContext holds common state and functionality for all commands
@@ -16,15 +18,55 @@ type CommandContext struct {
 	Verbose       bool
 	Logger        log.Logger
 	Formatter     printer.Formatter
+	Factory       client.Factory
+	IOStreams     genericiooptions.IOStreams
+	Clients       *ClientBundle // Lazy-loaded clients
 }
 
-func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*CommandContext, error) {
+// ClientBundle provides lazy-loaded clients to improve performance
+type ClientBundle struct {
+	factory    client.Factory
+	etcdClient client.EtcdClientInterface
+	genClient  client.GenericClientInterface
+}
+
+// NewClientBundle creates a new ClientBundle with the given factory
+func NewClientBundle(factory client.Factory) *ClientBundle {
+	return &ClientBundle{factory: factory}
+}
+
+// EtcdClient returns the etcd client, creating it if necessary
+func (c *ClientBundle) EtcdClient() (client.EtcdClientInterface, error) {
+	if c.etcdClient == nil {
+		var err error
+		c.etcdClient, err = c.factory.CreateEtcdClient()
+		if err != nil {
+			return nil, fmt.Errorf("failed to create etcd client: %w", err)
+		}
+	}
+	return c.etcdClient, nil
+}
+
+// GenericClient returns the generic client, creating it if necessary
+func (c *ClientBundle) GenericClient() (client.GenericClientInterface, error) {
+	if c.genClient == nil {
+		var err error
+		c.genClient, err = c.factory.CreateGenericClient()
+		if err != nil {
+			return nil, fmt.Errorf("failed to create generic client: %w", err)
+		}
+	}
+	return c.genClient, nil
+}
+
+func NewCommandContext(cmd *cobra.Command, args []string, options *GlobalOptions) (*CommandContext, error) {
 	// Get common flags from options
 	allNs := options.AllNamespaces
 	verbose := options.Verbose
 
 	outputLogger := log.NewLogger(options.LogType)
 	outputLogger.SetVerbose(verbose)
+	outputLogger.SetOutput(options.IOStreams.Out)
 
 	var err error
 	formatter, err := printer.NewFormatter(options.OutputFormat)
@@ -39,8 +81,15 @@ func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*Co
 	if len(args) > 0 {
 		resourceName = args[0]
 	}
-	if namespace, _, err = options.ConfigFlags.ToRawKubeConfigLoader().Namespace(); err != nil {
-		outputLogger.Error("Failed to get namespace: ", err)
+
+	// Handle namespace resolution - with fallback for testing
+	if options.ConfigFlags != nil {
+		if namespace, _, err = options.ConfigFlags.ToRawKubeConfigLoader().Namespace(); err != nil {
+			outputLogger.Error("Failed to get namespace: ", err)
+		}
+	}
+	if namespace == "" {
+		namespace = "default" // Fallback for testing
 	}
 
 	return &CommandContext{
@@ -50,6 +99,9 @@ func NewCommandContext(cmd *cobra.Command, args []string, options *Options) (*Co
 		Verbose:       verbose,
 		Logger:        outputLogger,
 		Formatter:     formatter,
+		Factory:       options.ClientFactory,
+		IOStreams:     options.IOStreams,
+		Clients:       NewClientBundle(options.ClientFactory),
 	}, nil
 }
 

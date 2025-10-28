@@ -71,8 +71,8 @@ func CreateTypedClientSet(configFlags *genericclioptions.ConfigFlags) (*druidcli
 	return typedClientSet, nil
 }
 
-// CreateTypedEtcdClient creates and returns an EtcdClient Interface
-func (f *ClientFactory) CreateTypedEtcdClient() (EtcdClientInterface, error) {
+// CreateEtcdClient creates and returns an EtcdClient Interface
+func (f *ClientFactory) CreateEtcdClient() (EtcdClientInterface, error) {
 	clientSet, err := CreateTypedClientSet(f.configFlags)
 	if err != nil {
 		return nil, err

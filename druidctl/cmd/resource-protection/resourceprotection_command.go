@@ -24,7 +24,7 @@ var (
 )
 
 // Create add-component-protection subcommand
-func NewAddProtectionCommand(options *types.Options) *cobra.Command {
+func NewAddProtectionCommand(options *types.GlobalOptions) *cobra.Command {
 	return &cobra.Command{
 		Use:   "add-component-protection <etcd-resource-name>",
 		Short: "Adds resource protection to all managed components for a given etcd cluster",
@@ -56,7 +56,7 @@ func NewAddProtectionCommand(options *types.Options) *cobra.Command {
 }
 
 // Create remove-component-protection subcommand
-func NewRemoveProtectionCommand(options *types.Options) *cobra.Command {
+func NewRemoveProtectionCommand(options *types.GlobalOptions) *cobra.Command {
 	return &cobra.Command{
 		Use:   "remove-component-protection <etcd-resource-name>",
 		Short: "Removes resource protection for all managed components for a given etcd cluster",
@@ -87,7 +87,7 @@ func NewRemoveProtectionCommand(options *types.Options) *cobra.Command {
 	}
 }
 
-func getResourceProtection(cmd *cobra.Command, args []string, options *types.Options) (*resourceProtectionCommandContext, error) {
+func getResourceProtection(cmd *cobra.Command, args []string, options *types.GlobalOptions) (*resourceProtectionCommandContext, error) {
 	// Create command context with all common functionality
 	cmdCtx, err := types.NewCommandContext(cmd, args, options)
 	if err != nil {
@@ -97,8 +97,8 @@ func getResourceProtection(cmd *cobra.Command, args []string, options *types.Opt
 		return nil, err
 	}
 
-	// Create typed etcd client
-	etcdClient, err := options.ClientFactory.CreateTypedEtcdClient()
+	// Create etcd client using enhanced CommandContext
+	etcdClient, err := cmdCtx.Clients.EtcdClient()
 	if err != nil {
 		cmdCtx.Logger.Error("Unable to create etcd client: ", err)
 		return nil, err

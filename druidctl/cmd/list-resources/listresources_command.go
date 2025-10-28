@@ -30,7 +30,7 @@ var (
 )
 
 // NewListResourcesCommand creates the list-resources command
-func NewListResourcesCommand(options *types.Options) *cobra.Command {
+func NewListResourcesCommand(options *types.GlobalOptions) *cobra.Command {
 	listResourcesCommandCtx := newListResourcesCommandContext(nil, defaultFilter)
 
 	listResourcesCmd := &cobra.Command{
@@ -54,35 +54,32 @@ func NewListResourcesCommand(options *types.Options) *cobra.Command {
 				return err
 			}
 
-			listResourcesCommandCtx.Logger.SetOutput(options.IOStreams.Out)
-
-			// Create typed etcd client
-			etcdClient, err := options.ClientFactory.CreateTypedEtcdClient()
+			// Create clients using the lazy-loaded ClientBundle
+			etcdClient, err := cmdCtx.Clients.EtcdClient()
 			if err != nil {
-				listResourcesCommandCtx.Logger.Error("Unable to create etcd client: ", err)
+				cmdCtx.Logger.Error("Unable to create etcd client: ", err)
 				return err
 			}
 			listResourcesCommandCtx.EtcdClient = etcdClient
 
-			// Create generic etcd client
-			genClient, err := options.ClientFactory.CreateGenericClient()
+			genClient, err := cmdCtx.Clients.GenericClient()
 			if err != nil {
 				return fmt.Errorf("failed to create generic kube clients: %w", err)
 			}
 			listResourcesCommandCtx.GenericClient = genClient
 
-			if listResourcesCommandCtx.AllNamespaces {
-				listResourcesCommandCtx.Logger.Info("Listing all Managed resources for Etcds across all namespaces")
+			if cmdCtx.AllNamespaces {
+				cmdCtx.Logger.Info("Listing all Managed resources for Etcds across all namespaces")
 			} else {
-				listResourcesCommandCtx.Logger.Info("Listing Managed resources for Etcds in namespace", listResourcesCommandCtx.Namespace)
+				cmdCtx.Logger.Info("Listing Managed resources for Etcds in namespace", cmdCtx.Namespace)
 			}
 
 			if err := listResourcesCommandCtx.execute(context.TODO()); err != nil {
-				listResourcesCommandCtx.Logger.Error("Listing Managed resources for Etcds failed", err)
+				cmdCtx.Logger.Error("Listing Managed resources for Etcds failed", err)
 				return err
 			}
 
-			listResourcesCommandCtx.Logger.Success("Listing Managed resources for Etcds completed successfully")
+			cmdCtx.Logger.Success("Listing Managed resources for Etcds completed successfully")
 			return nil
 		},
 	}

@@ -53,7 +53,7 @@ type reconcileCommandInfo struct {
 
 func newReconcileBaseCommand(
 	cmdInfo *reconcileCommandInfo,
-	options *types.Options,
+	options *types.GlobalOptions,
 	createReconcileContext func(*types.CommandContext) (reconcileContext, error),
 ) *cobra.Command {
 	cmd := &cobra.Command{
@@ -99,7 +99,7 @@ func newReconcileBaseCommand(
 }
 
 // NewReconcileCommand creates the reconcile command
-func NewReconcileCommand(options *types.Options) *cobra.Command {
+func NewReconcileCommand(options *types.GlobalOptions) *cobra.Command {
 	var waitTillReady bool
 	var timeout time.Duration = defaultTimeout
 
@@ -114,7 +114,7 @@ func NewReconcileCommand(options *types.Options) *cobra.Command {
 		cmdInfo,
 		options,
 		func(cmdCtx *types.CommandContext) (reconcileContext, error) {
-			etcdClient, err := options.ClientFactory.CreateTypedEtcdClient()
+			etcdClient, err := cmdCtx.Clients.EtcdClient()
 			if err != nil {
 				cmdCtx.Logger.Error("Unable to create etcd client: ", err)
 				return nil, err
@@ -135,7 +135,7 @@ func NewReconcileCommand(options *types.Options) *cobra.Command {
 }
 
 // NewSuspendReconcileCommand creates a new suspend reconcile command.
-func NewSuspendReconcileCommand(options *types.Options) *cobra.Command {
+func NewSuspendReconcileCommand(options *types.GlobalOptions) *cobra.Command {
 	cmdInfo := &reconcileCommandInfo{
 		use:     "suspend-reconcile <etcd-resource-name>",
 		short:   "Suspend reconciliation for the mentioned etcd resource",
@@ -146,7 +146,7 @@ func NewSuspendReconcileCommand(options *types.Options) *cobra.Command {
 		cmdInfo,
 		options,
 		func(cmdCtx *types.CommandContext) (reconcileContext, error) {
-			etcdClient, err := options.ClientFactory.CreateTypedEtcdClient()
+			etcdClient, err := cmdCtx.Clients.EtcdClient()
 			if err != nil {
 				cmdCtx.Logger.Error("Unable to create etcd client: ", err)
 				return nil, err
@@ -161,7 +161,7 @@ func NewSuspendReconcileCommand(options *types.Options) *cobra.Command {
 }
 
 // NewResumeReconcileCommand creates a new resume reconcile command.
-func NewResumeReconcileCommand(options *types.Options) *cobra.Command {
+func NewResumeReconcileCommand(options *types.GlobalOptions) *cobra.Command {
 	cmdInfo := &reconcileCommandInfo{
 		use:     "resume-reconcile <etcd-resource-name>",
 		short:   "Resume reconciliation for the mentioned etcd resource",
@@ -172,7 +172,7 @@ func NewResumeReconcileCommand(options *types.Options) *cobra.Command {
 		cmdInfo,
 		options,
 		func(cmdCtx *types.CommandContext) (reconcileContext, error) {
-			etcdClient, err := options.ClientFactory.CreateTypedEtcdClient()
+			etcdClient, err := cmdCtx.Clients.EtcdClient()
 			if err != nil {
 				cmdCtx.Logger.Error("Unable to create etcd client: ", err)
 				return nil, err

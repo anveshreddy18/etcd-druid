@@ -10,7 +10,7 @@ import (
 )
 
 // Global options instance
-var options *types.Options
+var options *types.GlobalOptions
 
 var rootCmd = &cobra.Command{
 	Use:   "druid [command] [resource] [flags]",
