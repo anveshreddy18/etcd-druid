@@ -18,10 +18,10 @@ var (
 	reconcileExample = `
 		# Reconcile an Etcd resource named "my-etcd" in the default namespace
 		druidctl reconcile my-etcd --namespace default
-		
-		# Reconcile an Etcd resource named "my-etcd" in all namespaces
-		druidctl reconcile my-etcd --all-namespaces
-		
+
+		# Reconcile all Etcd resources across all namespaces
+		druidctl reconcile --all-namespaces
+
 		# Reconcile an Etcd resource named "my-etcd" in the default namespace and wait until it's ready
 		druidctl reconcile my-etcd --namespace default --wait-till-ready
 
@@ -31,16 +31,16 @@ var (
 	suspendReconcileExample = `
 		# Suspend reconciliation for an Etcd resource named "my-etcd" in the default namespace
 		druidctl suspend-reconcile my-etcd --namespace default
-		
-		# Suspend reconciliation for an Etcd resource named "my-etcd" in all namespaces
-		druidctl suspend-reconcile my-etcd --all-namespaces`
+
+		# Suspend reconciliation for all Etcd resources in all namespaces
+		druidctl suspend-reconcile --all-namespaces`
 
 	resumeReconcileExample = `
 		# Resume reconciliation for an Etcd resource named "my-etcd" in the default namespace
 		druidctl resume-reconcile my-etcd --namespace default
-		
-		# Resume reconciliation for an Etcd resource named "my-etcd" in all namespaces
-		druidctl resume-reconcile my-etcd --all-namespaces`
+
+		# Resume reconciliation for all Etcd resources in all namespaces
+		druidctl resume-reconcile --all-namespaces`
 )
 
 // group the Use, Short, Long and Example for the reconcile commands into a structure
@@ -54,7 +54,7 @@ type reconcileCommandInfo struct {
 func newReconcileBaseCommand(
 	cmdInfo *reconcileCommandInfo,
 	options *types.GlobalOptions,
-	createReconcileContext func(*types.CommandContext) (reconcileContext, error),
+	createReconcileContext func(*types.GlobalOptions) (reconcileContext, error),
 ) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     cmdInfo.use,
@@ -63,35 +63,29 @@ func newReconcileBaseCommand(
 		Example: cmdInfo.example,
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Create command context with all common functionality
-			cmdCtx, err := types.NewCommandContext(cmd, args, options)
-			if err != nil {
-				return err
-			}
-			if err := cmdCtx.Validate(); err != nil {
-				return err
-			}
-
-			reconcileContext, err := createReconcileContext(cmdCtx)
+			options.Logger.SetOutput(options.IOStreams.Out)
+			reconcileContext, err := createReconcileContext(options)
 			if err != nil {
 				return err
 			}
 			if err := reconcileContext.validate(); err != nil {
-				cmdCtx.Logger.Error(fmt.Sprintf("%s validation failed", getOperationName(cmdInfo.use)), err)
+				options.Logger.SetOutput(options.IOStreams.ErrOut)
+				options.Logger.Error(fmt.Sprintf("%s validation failed", getOperationName(cmdInfo.use)), err)
 				return err
 			}
 
-			if cmdCtx.AllNamespaces {
-				cmdCtx.Logger.Info(fmt.Sprintf("%s Etcd resources across all namespaces", getOperationName(cmdInfo.use)))
+			if options.AllNamespaces {
+				options.Logger.Info(fmt.Sprintf("%s Etcd resources across all namespaces", getOperationName(cmdInfo.use)))
 			} else {
-				cmdCtx.Logger.Info(fmt.Sprintf("%s Etcd resource", getOperationName(cmdInfo.use)), cmdCtx.ResourceName, cmdCtx.Namespace)
+				options.Logger.Info(fmt.Sprintf("%s Etcd resource", getOperationName(cmdInfo.use)), options.ResourceName, options.Namespace)
 			}
 
 			if err := reconcileContext.execute(context.TODO()); err != nil {
-				cmdCtx.Logger.Error(fmt.Sprintf("%s failed", getOperationName(cmdInfo.use)), err)
+				options.Logger.SetOutput(options.IOStreams.ErrOut)
+				options.Logger.Error(fmt.Sprintf("%s failed", getOperationName(cmdInfo.use)), err)
 				return err
 			}
-			cmdCtx.Logger.Success(fmt.Sprintf("%s completed successfully", getOperationName(cmdInfo.use)))
+			options.Logger.Success(fmt.Sprintf("%s completed successfully", getOperationName(cmdInfo.use)))
 			return nil
 		},
 	}
@@ -113,14 +107,16 @@ func NewReconcileCommand(options *types.GlobalOptions) *cobra.Command {
 	reconcileCmd := newReconcileBaseCommand(
 		cmdInfo,
 		options,
-		func(cmdCtx *types.CommandContext) (reconcileContext, error) {
-			etcdClient, err := cmdCtx.Clients.EtcdClient()
+		func(options *types.GlobalOptions) (reconcileContext, error) {
+			options.Logger.SetOutput(options.IOStreams.Out)
+			etcdClient, err := options.Clients.EtcdClient()
 			if err != nil {
-				cmdCtx.Logger.Error("Unable to create etcd client: ", err)
+				options.Logger.SetOutput(options.IOStreams.ErrOut)
+				options.Logger.Error("Unable to create etcd client: ", err)
 				return nil, err
 			}
 
-			reconcileContext := newReconcileCommandContext(cmdCtx, etcdClient, waitTillReady, timeout)
+			reconcileContext := newReconcileCommandContext(options, etcdClient, waitTillReady, timeout)
 			return reconcileContext, nil
 		},
 	)
@@ -145,14 +141,16 @@ func NewSuspendReconcileCommand(options *types.GlobalOptions) *cobra.Command {
 	suspendReconcileCmd := newReconcileBaseCommand(
 		cmdInfo,
 		options,
-		func(cmdCtx *types.CommandContext) (reconcileContext, error) {
-			etcdClient, err := cmdCtx.Clients.EtcdClient()
+		func(options *types.GlobalOptions) (reconcileContext, error) {
+			options.Logger.SetOutput(options.IOStreams.Out)
+			etcdClient, err := options.Clients.EtcdClient()
 			if err != nil {
-				cmdCtx.Logger.Error("Unable to create etcd client: ", err)
+				options.Logger.SetOutput(options.IOStreams.ErrOut)
+				options.Logger.Error("Unable to create etcd client: ", err)
 				return nil, err
 			}
 
-			suspendReconcileContext := newSuspendReconcileCommandContext(cmdCtx, etcdClient)
+			suspendReconcileContext := newSuspendReconcileCommandContext(options, etcdClient)
 			return suspendReconcileContext, nil
 		},
 	)
@@ -171,14 +169,16 @@ func NewResumeReconcileCommand(options *types.GlobalOptions) *cobra.Command {
 	resumeReconcileCmd := newReconcileBaseCommand(
 		cmdInfo,
 		options,
-		func(cmdCtx *types.CommandContext) (reconcileContext, error) {
-			etcdClient, err := cmdCtx.Clients.EtcdClient()
+		func(options *types.GlobalOptions) (reconcileContext, error) {
+			options.Logger.SetOutput(options.IOStreams.Out)
+			etcdClient, err := options.Clients.EtcdClient()
 			if err != nil {
-				cmdCtx.Logger.Error("Unable to create etcd client: ", err)
+				options.Logger.SetOutput(options.IOStreams.ErrOut)
+				options.Logger.Error("Unable to create etcd client: ", err)
 				return nil, err
 			}
 
-			resumeReconcileContext := newResumeReconcileCommandContext(cmdCtx, etcdClient)
+			resumeReconcileContext := newResumeReconcileCommandContext(options, etcdClient)
 			return resumeReconcileContext, nil
 		},
 	)

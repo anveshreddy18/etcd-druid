@@ -30,13 +30,19 @@ func Execute() error {
 	options.AddFlags(rootCmd)
 
 	originalPreRun := rootCmd.PersistentPreRun
-	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		// cmd.SilenceUsage = true
 		cmd.SilenceErrors = true
 		banner.ShowBanner(rootCmd, cmd, options.DisableBanner)
+		options.Complete(cmd, args)
+		if err := options.Validate(); err != nil {
+			options.Logger.Error("Validation failed: ", err)
+			return err
+		}
 		if originalPreRun != nil {
 			originalPreRun(cmd, args)
 		}
+		return nil
 	}
 
 	// Add subcommands

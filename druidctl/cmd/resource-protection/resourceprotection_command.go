@@ -33,23 +33,24 @@ func NewAddProtectionCommand(options *types.GlobalOptions) *cobra.Command {
 		Example: addProtectionExample,
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resourceProtectionCtx, err := getResourceProtection(cmd, args, options)
+			resourceProtectionCtx, err := getResourceProtection(options)
 			if err != nil {
 				return err
 			}
-
-			if resourceProtectionCtx.AllNamespaces {
-				resourceProtectionCtx.Logger.Info("Adding component protection to all namespaces")
+			options.Logger.SetOutput(options.IOStreams.Out)
+			if options.AllNamespaces {
+				options.Logger.Info("Adding component protection to all namespaces")
 			} else {
-				resourceProtectionCtx.Logger.Info("Adding component protection to Etcd", resourceProtectionCtx.ResourceName, resourceProtectionCtx.Namespace)
+				options.Logger.Info("Adding component protection to Etcd", options.ResourceName, options.Namespace)
 			}
 
-			if err := resourceProtectionCtx.addDisableProtectionAnnotation(context.TODO()); err != nil {
-				resourceProtectionCtx.Logger.Error("Add component protection failed", err)
+			if err := resourceProtectionCtx.removeDisableProtectionAnnotation(context.TODO()); err != nil {
+				options.Logger.SetOutput(options.IOStreams.ErrOut)
+				options.Logger.Error("Add component protection failed", err)
 				return err
 			}
 
-			resourceProtectionCtx.Logger.Success("Component protection added successfully")
+			options.Logger.Success("Component protection added successfully")
 			return nil
 		},
 	}
@@ -65,46 +66,37 @@ func NewRemoveProtectionCommand(options *types.GlobalOptions) *cobra.Command {
 		Example: removeProtectionExample,
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resourceProtectionCtx, err := getResourceProtection(cmd, args, options)
+			resourceProtectionCtx, err := getResourceProtection(options)
 			if err != nil {
 				return err
 			}
-
-			if resourceProtectionCtx.AllNamespaces {
-				resourceProtectionCtx.Logger.Info("Removing component protection from Etcds across all namespaces")
+			options.Logger.SetOutput(options.IOStreams.Out)
+			if options.AllNamespaces {
+				options.Logger.Info("Removing component protection from Etcds across all namespaces")
 			} else {
-				resourceProtectionCtx.Logger.Info("Removing component protection from Etcd", resourceProtectionCtx.ResourceName, resourceProtectionCtx.Namespace)
+				options.Logger.Info("Removing component protection from Etcd", options.ResourceName, options.Namespace)
 			}
 
-			if err := resourceProtectionCtx.removeDisableProtectionAnnotation(context.TODO()); err != nil {
-				resourceProtectionCtx.Logger.Error("Remove component protection failed", err)
+			if err := resourceProtectionCtx.addDisableProtectionAnnotation(context.TODO()); err != nil {
+				options.Logger.SetOutput(options.IOStreams.ErrOut)
+				options.Logger.Error("Remove component protection failed", err)
 				return err
 			}
 
-			resourceProtectionCtx.Logger.Success("Component protection removed successfully")
+			options.Logger.Success("Component protection removed successfully")
 			return nil
 		},
 	}
 }
 
-func getResourceProtection(cmd *cobra.Command, args []string, options *types.GlobalOptions) (*resourceProtectionCommandContext, error) {
-	// Create command context with all common functionality
-	cmdCtx, err := types.NewCommandContext(cmd, args, options)
+func getResourceProtection(options *types.GlobalOptions) (*resourceProtectionCommandContext, error) {
+	etcdClient, err := options.Clients.EtcdClient()
 	if err != nil {
-		return nil, err
-	}
-	if err := cmdCtx.Validate(); err != nil {
+		options.Logger.Error("Unable to create etcd client: ", err)
 		return nil, err
 	}
 
-	// Create etcd client using enhanced CommandContext
-	etcdClient, err := cmdCtx.Clients.EtcdClient()
-	if err != nil {
-		cmdCtx.Logger.Error("Unable to create etcd client: ", err)
-		return nil, err
-	}
-
-	resourceProtectionCtx := newResourceProtectionCommandContext(cmdCtx, etcdClient)
+	resourceProtectionCtx := newResourceProtectionCommandContext(options, etcdClient)
 	if err := resourceProtectionCtx.validate(); err != nil {
 		return nil, err
 	}

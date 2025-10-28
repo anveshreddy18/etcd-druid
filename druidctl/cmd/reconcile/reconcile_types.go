@@ -15,43 +15,43 @@ type reconcileContext interface {
 
 // reconcileCommandContext holds state and functionality specific to the reconcile command
 type reconcileCommandContext struct {
-	*types.CommandContext
+	*types.GlobalOptions
 	etcdClient    client.EtcdClientInterface
 	waitTillReady bool
 	timeout       time.Duration
 }
 
-func newReconcileCommandContext(cmdCtx *types.CommandContext, etcdClient client.EtcdClientInterface, waitTillReady bool, timeout time.Duration) *reconcileCommandContext {
+func newReconcileCommandContext(globalOpts *types.GlobalOptions, etcdClient client.EtcdClientInterface, waitTillReady bool, timeout time.Duration) *reconcileCommandContext {
 	return &reconcileCommandContext{
-		CommandContext: cmdCtx,
-		etcdClient:     etcdClient,
-		waitTillReady:  waitTillReady,
-		timeout:        timeout,
+		GlobalOptions: globalOpts,
+		etcdClient:    etcdClient,
+		waitTillReady: waitTillReady,
+		timeout:       timeout,
 	}
 }
 
 // suspendReconcileCommandContext holds state and functionality specific to the suspend-reconcile command
 type suspendReconcileCommandContext struct {
-	*types.CommandContext
+	*types.GlobalOptions
 	etcdClient client.EtcdClientInterface
 }
 
-func newSuspendReconcileCommandContext(cmdCtx *types.CommandContext, etcdClient client.EtcdClientInterface) *suspendReconcileCommandContext {
+func newSuspendReconcileCommandContext(globalOpts *types.GlobalOptions, etcdClient client.EtcdClientInterface) *suspendReconcileCommandContext {
 	return &suspendReconcileCommandContext{
-		CommandContext: cmdCtx,
-		etcdClient:     etcdClient,
+		GlobalOptions: globalOpts,
+		etcdClient:    etcdClient,
 	}
 }
 
 // resumeReconcileCommandContext holds state and functionality specific to the resume-reconcile command
 type resumeReconcileCommandContext struct {
-	*types.CommandContext
+	*types.GlobalOptions
 	etcdClient client.EtcdClientInterface
 }
 
-func newResumeReconcileCommandContext(cmdCtx *types.CommandContext, etcdClient client.EtcdClientInterface) *resumeReconcileCommandContext {
+func newResumeReconcileCommandContext(globalOpts *types.GlobalOptions, etcdClient client.EtcdClientInterface) *resumeReconcileCommandContext {
 	return &resumeReconcileCommandContext{
-		CommandContext: cmdCtx,
-		etcdClient:     etcdClient,
+		GlobalOptions: globalOpts,
+		etcdClient:    etcdClient,
 	}
 }

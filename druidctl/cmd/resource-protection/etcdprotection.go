@@ -59,7 +59,8 @@ func (resourceProtectionCtx *resourceProtectionCommandContext) removeDisableProt
 			resourceProtectionCtx.Logger.Info("Processing remove disable protection annotation for etcd", etcd.Name, etcd.Namespace)
 		}
 		if etcd.Annotations == nil {
-			return fmt.Errorf("no annotation found to remove in ns/etcd: %s/%s", etcd.Namespace, etcd.Name)
+			resourceProtectionCtx.Logger.Info("No annotation found to remove in ns/etcd: %s/%s", etcd.Namespace, etcd.Name)
+			return nil
 		}
 		etcdModifier := func(e *druidv1alpha1.Etcd) {
 			if e.Annotations != nil {

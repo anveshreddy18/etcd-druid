@@ -6,15 +6,15 @@ import (
 )
 
 type listResourcesCommandContext struct {
-	*types.CommandContext
+	*types.GlobalOptions
 	EtcdClient    client.EtcdClientInterface
 	GenericClient client.GenericClientInterface
 	Filter        string
 }
 
-func newListResourcesCommandContext(cmdCtx *types.CommandContext, filter string) *listResourcesCommandContext {
+func newListResourcesCommandContext(options *types.GlobalOptions, filter string) *listResourcesCommandContext {
 	return &listResourcesCommandContext{
-		CommandContext: cmdCtx,
-		Filter:         filter,
+		GlobalOptions: options,
+		Filter:        filter,
 	}
 }

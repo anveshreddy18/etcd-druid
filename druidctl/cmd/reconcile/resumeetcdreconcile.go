@@ -75,7 +75,9 @@ func resumeEtcdReconcile(ctx context.Context, etcd druidv1alpha1.Etcd, resumeCtx
 	resumeCtx.Logger.Start("Starting to resume reconciliation for etcd", etcd.Name, etcd.Namespace)
 
 	etcdModifier := func(e *druidv1alpha1.Etcd) {
-		delete(e.Annotations, druidv1alpha1.SuspendEtcdSpecReconcileAnnotation)
+		if e.Annotations != nil {
+			delete(e.Annotations, druidv1alpha1.SuspendEtcdSpecReconcileAnnotation)
+		}
 	}
 	if err := resumeCtx.etcdClient.UpdateEtcd(ctx, &etcd, etcdModifier); err != nil {
 		return fmt.Errorf("unable to update etcd object: %w", err)

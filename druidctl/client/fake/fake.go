@@ -129,11 +129,10 @@ func (c *FakeGenericClient) Dynamic() dynamic.Interface {
 }
 
 func (c *FakeGenericClient) Discovery() discovery.DiscoveryInterface {
-	// For Phase 2, use the built-in fake discovery client
-	// It will return empty resources, which is fine for testing the factory pattern
+	// use the built-in fake discovery client which will return empty resources, which is fine for testing the factory pattern for now.
 	return c.k8sClient.Discovery()
 }
 
 func (c *FakeGenericClient) RESTMapper() meta.RESTMapper {
-	return nil // Keep simple for now
+	return nil
 }

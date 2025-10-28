@@ -11,6 +11,7 @@ import (
 	"github.com/gardener/etcd-druid/druidctl/pkg/log"
 	"github.com/gardener/etcd-druid/druidctl/pkg/printer"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 )
 
@@ -55,13 +56,24 @@ func (h *TestHelper) WithTestScenario(builder *TestDataBuilder) *TestHelper {
 func (h *TestHelper) CreateTestOptions() *types.GlobalOptions {
 	testFactory := NewTestFactoryWithData(h.etcdObjects, h.k8sObjects)
 
+	// Create fake config flags for testing
+	configFlags := &genericclioptions.ConfigFlags{
+		Namespace: stringPtr("default"),
+	}
+
 	return &types.GlobalOptions{
 		OutputFormat:  printer.OutputTypeNone,
 		LogType:       log.LogTypeCharm,
-		ConfigFlags:   nil, // Will be handled gracefully by NewCommandContext
+		ConfigFlags:   configFlags,
 		ClientFactory: testFactory,
 		IOStreams:     h.streams,
+		Clients:       types.NewClientBundle(testFactory),
 	}
+}
+
+// stringPtr is a helper function to create string pointers
+func stringPtr(s string) *string {
+	return &s
 }
 
 // CreateTestCommandContext creates a CommandContext for testing

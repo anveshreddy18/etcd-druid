@@ -6,13 +6,13 @@ import (
 )
 
 type resourceProtectionCommandContext struct {
-	*types.CommandContext
+	*types.GlobalOptions
 	etcdClient client.EtcdClientInterface
 }
 
-func newResourceProtectionCommandContext(cmdCtx *types.CommandContext, etcdClient client.EtcdClientInterface) *resourceProtectionCommandContext {
+func newResourceProtectionCommandContext(options *types.GlobalOptions, etcdClient client.EtcdClientInterface) *resourceProtectionCommandContext {
 	return &resourceProtectionCommandContext{
-		CommandContext: cmdCtx,
-		etcdClient:     etcdClient,
+		GlobalOptions: options,
+		etcdClient:    etcdClient,
 	}
 }
