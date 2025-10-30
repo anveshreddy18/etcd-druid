@@ -5,7 +5,7 @@ import (
 	os "os"
 
 	tea "github.com/charmbracelet/bubbletea"
-	client "github.com/gardener/etcd-druid/druidctl/client"
+	client "github.com/gardener/etcd-druid/druidctl/internal/client"
 	"github.com/gardener/etcd-druid/druidctl/pkg"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )

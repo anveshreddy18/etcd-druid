@@ -7,8 +7,8 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/gardener/etcd-druid/druidctl/cli/types"
-	client "github.com/gardener/etcd-druid/druidctl/client"
 	core "github.com/gardener/etcd-druid/druidctl/internal"
+	client "github.com/gardener/etcd-druid/druidctl/internal/client"
 	"github.com/gardener/etcd-druid/druidctl/pkg"
 )
 
