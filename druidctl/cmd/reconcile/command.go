@@ -16,28 +16,49 @@ const (
 
 var (
 	reconcileExample = `
-		# Reconcile an Etcd resource named "my-etcd" in the default namespace
-		druidctl reconcile my-etcd --namespace default
+		# Reconcile an Etcd resource named "my-etcd" in the test namespace
+		druidctl reconcile 'test/my-etcd'
+
+		# Reconcile all Etcd resources in the test namespace
+		druidctl reconcile 'test/*'
+
+		# Reconcile different Etcd resources in different namespaces
+		druidctl reconcile 'test/my-etcd,dev/my-etcd'
 
 		# Reconcile all Etcd resources across all namespaces
-		druidctl reconcile --all-namespaces
+		druidctl reconcile --all-namespaces(-A)
 
-		# Reconcile an Etcd resource named "my-etcd" in the default namespace and wait until it's ready
-		druidctl reconcile my-etcd --namespace default --wait-till-ready
+		# Reconcile an Etcd resource named "my-etcd" in the test namespace and wait until it's ready with default timeout
+		druidctl reconcile 'test/my-etcd' --wait-till-ready
 
-		# Reconcile an Etcd resource named "my-etcd" in the default namespace with a custom timeout
-		druidctl reconcile my-etcd --namespace default --wait-till-ready --timeout=10m`
+		# Reconcile an Etcd resource named "my-etcd" in the test namespace with a custom timeout
+		druidctl reconcile 'test/my-etcd' --wait-till-ready --timeout=10m
+		
+		# Reconcile an Etcd resource named "my-etcd" in the test namespace and watch until it's ready, i.e, --wait-till-ready with indefinite timeout
+		druidctl reconcile 'test/my-etcd' --watch(-W)`
 
 	suspendReconcileExample = `
-		# Suspend reconciliation for an Etcd resource named "my-etcd" in the default namespace
-		druidctl suspend-reconcile my-etcd --namespace default
+		# Suspend reconciliation for an Etcd resource named "my-etcd" in the test namespace
+		druidctl suspend-reconcile 'test/my-etcd'
+
+		# Suspend reconciliation for all Etcd resources in the test namespace
+		druidctl suspend-reconcile 'test/*'
+		
+		# Suspend reconciliation for different Etcd resources in different namespaces
+		druidctl suspend-reconcile 'test/my-etcd,dev/my-etcd'
 
 		# Suspend reconciliation for all Etcd resources in all namespaces
 		druidctl suspend-reconcile --all-namespaces`
 
 	resumeReconcileExample = `
-		# Resume reconciliation for an Etcd resource named "my-etcd" in the default namespace
-		druidctl resume-reconcile my-etcd --namespace default
+		# Resume reconciliation for an Etcd resource named "my-etcd" in the test namespace
+		druidctl resume-reconcile 'test/my-etcd'
+
+		# Resume reconciliation for all Etcd resources in the test namespace
+		druidctl resume-reconcile 'test/*'
+
+		# Resume reconciliation for different Etcd resources in different namespaces
+		druidctl resume-reconcile 'test/my-etcd,dev/my-etcd'
 
 		# Resume reconciliation for all Etcd resources in all namespaces
 		druidctl resume-reconcile --all-namespaces`
@@ -77,7 +98,7 @@ func newReconcileBaseCommand(
 			if options.AllNamespaces {
 				options.Logger.Info(options.IOStreams.Out, fmt.Sprintf("%s Etcd resources across all namespaces", getOperationName(cmdInfo.use)))
 			} else {
-				options.Logger.Info(options.IOStreams.Out, fmt.Sprintf("%s Etcd resource", getOperationName(cmdInfo.use)), options.ResourcesRef, options.Namespace)
+				options.Logger.Info(options.IOStreams.Out, fmt.Sprintf("%s for selected Etcd resources", getOperationName(cmdInfo.use)))
 			}
 
 			if err := reconcileCmdCtx.execute(context.TODO()); err != nil {
@@ -94,6 +115,7 @@ func newReconcileBaseCommand(
 // NewReconcileCommand creates the 'reconcile' command
 func NewReconcileCommand(options *cmdutils.GlobalOptions) *cobra.Command {
 	var waitTillReady bool
+	var watch bool
 	var timeout time.Duration = defaultTimeout
 
 	cmdInfo := &reconcileCommandInfo{
@@ -107,7 +129,7 @@ func NewReconcileCommand(options *cmdutils.GlobalOptions) *cobra.Command {
 		cmdInfo,
 		options,
 		func(options *cmdutils.GlobalOptions) reconcileCmdCtxInterface {
-			reconcileOptions := newReconcileOptions(options, waitTillReady, timeout)
+			reconcileOptions := newReconcileOptions(options, waitTillReady, watch, timeout)
 			return &reconcileCmdCtx{
 				reconcileOptions: reconcileOptions,
 			}
@@ -117,6 +139,8 @@ func NewReconcileCommand(options *cmdutils.GlobalOptions) *cobra.Command {
 	// Add command-specific flags
 	reconcileCmd.Flags().BoolVarP(&waitTillReady, "wait-till-ready", "w", false,
 		"Wait until the Etcd resource is ready before reconciling")
+	reconcileCmd.Flags().BoolVarP(&watch, "watch", "W", false,
+		"Watch the Etcd resources until they are ready after reconciliation")
 	reconcileCmd.Flags().DurationVarP(&timeout, "timeout", "t", defaultTimeout,
 		"Timeout for the reconciliation process")
 

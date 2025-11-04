@@ -12,18 +12,24 @@ const defaultFilter = "all"
 
 var (
 	example = `
-		# List all managed resources for the etcd resource named 'my-etcd' in the 'default' namespace
-		druidctl list-resources my-etcd --namespace default
+		# List all managed resources for the etcd resource named 'my-etcd' in the 'test' namespace
+		druidctl list-resources 'test/my-etcd'
+
+		# List all managed resources for all etcd resources in the 'test' namespace
+		druidctl list-resources 'test/*'
+
+		# List all managed resources for different etcd resources in different namespaces
+		druidctl list-resources 'test/my-etcd,dev/my-etcd'
 
 		# List all managed resources for all etcd resources across all namespaces
 		druidctl list-resources --all-namespaces
 
-		# List only the Secrets and ConfigMaps managed resources for the etcd resource named 'my-etcd' in the 'default' namespace
-		druidctl list-resources my-etcd --namespace default --filter=secrets,configmaps
+		# List only the Secrets and ConfigMaps managed resources for the etcd resource named 'my-etcd' in the 'test' namespace
+		druidctl list-resources 'test/my-etcd' --filter=secrets,configmaps
 
-		# List all managed resources for the etcd resource named 'my-etcd' in the 'default' namespace in JSON format
-		druidctl list-resources my-etcd --namespace default --output=json
-		
+		# List all managed resources for the etcd resource named 'my-etcd' in the 'test' namespace in JSON format
+		druidctl list-resources 'test/my-etcd' --output=json
+
 		# List all managed resources for all etcd resources across all namespaces in YAML format
 		druidctl list-resources --all-namespaces --output=yaml
 	`

@@ -19,6 +19,7 @@ type reconcileCmdCtxInterface interface {
 type reconcileOptions struct {
 	*cmdutils.GlobalOptions
 	waitTillReady bool
+	watch         bool
 	timeout       time.Duration
 }
 
@@ -28,10 +29,11 @@ type reconcileCmdCtx struct {
 	etcdClient  client.EtcdClientInterface
 }
 
-func newReconcileOptions(options *cmdutils.GlobalOptions, waitTillReady bool, timeout time.Duration) *reconcileOptions {
+func newReconcileOptions(options *cmdutils.GlobalOptions, waitTillReady bool, watch bool, timeout time.Duration) *reconcileOptions {
 	return &reconcileOptions{
 		GlobalOptions: options,
 		waitTillReady: waitTillReady,
+		watch:         watch,
 		timeout:       timeout,
 	}
 }

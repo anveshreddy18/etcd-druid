@@ -9,6 +9,7 @@ import (
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
 	cmdutils "github.com/gardener/etcd-druid/druidctl/cmd/utils"
 	"github.com/gardener/etcd-druid/druidctl/internal/utils"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type reconcileResult struct {
@@ -36,6 +37,10 @@ func (r *reconcileCmdCtx) validate() error {
 	if !r.waitTillReady && r.timeout != defaultTimeout {
 		return fmt.Errorf("cannot specify --timeout/-t without --wait-till-ready/-w")
 	}
+	// --watch already waits indefinitely, so --wait-till-ready/-w or --timeout/-t are redundant
+	if r.watch && (r.waitTillReady || r.timeout != defaultTimeout) {
+		return fmt.Errorf("cannot specify --watch/-W with --wait-till-ready/-w or --timeout/-t")
+	}
 	return nil
 }
 
@@ -43,15 +48,23 @@ func (r *reconcileCmdCtx) validate() error {
 // Another where you wait till all the changes done to the Etcd resource have successfully reconciled and post reconciliation
 // all the etcd cluster members are Ready
 func (r *reconcileCmdCtx) execute(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, r.timeout)
+	var ctxWithTimeout context.Context
+	var cancel context.CancelFunc
+	if r.watch {
+		ctxWithTimeout = ctx
+		cancel = func() {}
+	} else {
+		ctxWithTimeout, cancel = context.WithTimeout(ctx, r.timeout)
+	}
 	defer cancel()
-	etcdList, err := utils.GetEtcdList(ctx, r.etcdClient, r.etcdRefList, r.AllNamespaces)
+
+	etcdList, err := utils.GetEtcdList(ctxWithTimeout, r.etcdClient, r.etcdRefList, r.AllNamespaces)
 	if err != nil {
 		return err
 	}
 
 	resultChan := make(chan *reconcileResult, len(etcdList.Items))
-
+	statusMgr := newStatusManager()
 	wg := sync.WaitGroup{}
 
 	// Reconcile each Etcd resource
@@ -60,7 +73,9 @@ func (r *reconcileCmdCtx) execute(ctx context.Context) error {
 		go func(etcd druidv1alpha1.Etcd) {
 			defer wg.Done()
 			startTime := time.Now()
-			err := r.processReconcile(ctx, &etcd)
+			key := types.NamespacedName{Namespace: etcd.Namespace, Name: etcd.Name}
+			statusMgr.initStatus(key, startTime)
+			err := r.processReconcile(ctxWithTimeout, &etcd, statusMgr)
 			resultChan <- &reconcileResult{
 				Etcd:     &etcd,
 				Error:    err,
@@ -69,42 +84,60 @@ func (r *reconcileCmdCtx) execute(ctx context.Context) error {
 		}(etcd)
 	}
 
+	printTicker := time.NewTicker(10 * time.Second)
+
 	go func() {
 		wg.Wait()
 		close(resultChan)
+		printTicker.Stop()
 	}()
 
-	var hasFailedReconciles bool
-	for result := range resultChan {
-		if result.Error == nil {
-			r.Logger.Success(r.IOStreams.Out, fmt.Sprintf("Reconciliation successful in %s", utils.ShortDuration(result.Duration)), result.Etcd.Name, result.Etcd.Namespace)
-		} else {
-			hasFailedReconciles = true
-			r.Logger.Error(r.IOStreams.ErrOut, "Reconciliation failed", result.Error, result.Etcd.Name, result.Etcd.Namespace)
-		}
+	if r.waitTillReady || r.watch {
+		go func() {
+			for range printTicker.C {
+				printReconcileStatus(statusMgr)
+			}
+		}()
 	}
 
-	if hasFailedReconciles {
+	failedResults := make([]*reconcileResult, 0)
+	for result := range resultChan {
+		if result.Error != nil {
+			failedResults = append(failedResults, result)
+		}
+	}
+	if r.waitTillReady || r.watch {
+		printReconcileStatus(statusMgr)
+	}
+
+	if len(failedResults) > 0 {
+		r.Logger.Info(r.IOStreams.Out, "Reconciliation failed for the following etcd resources:")
+		for _, result := range failedResults {
+			r.Logger.Error(r.IOStreams.ErrOut, "Reconciliation failed", result.Error, result.Etcd.Name, result.Etcd.Namespace)
+		}
 		return fmt.Errorf("one or more reconciliations failed")
 	}
 	return nil
 }
 
-func (r *reconcileCmdCtx) processReconcile(ctx context.Context, etcd *druidv1alpha1.Etcd) error {
-	r.Logger.Start(r.IOStreams.Out, "Starting reconciliation for etcd", etcd.Name, etcd.Namespace)
+func (r *reconcileCmdCtx) processReconcile(ctx context.Context, etcd *druidv1alpha1.Etcd, sm *statusManager) error {
+	if r.Verbose {
+		r.Logger.Start(r.IOStreams.Out, "Starting reconciliation for etcd", etcd.Name, etcd.Namespace)
+	}
 
 	// first reconcile the Etcd resource
 	if err := r.reconcileEtcdResource(ctx, etcd); err != nil {
 		return err
 	}
+	sm.setReconcileTriggered(types.NamespacedName{Namespace: etcd.Namespace, Name: etcd.Name})
 
 	//  check if the reconciliation is suspended, if yes, then return error as we cannot proceed
 	if _, suspended := etcd.Annotations[druidv1alpha1.SuspendEtcdSpecReconcileAnnotation]; suspended {
-		return fmt.Errorf("reconciliation is suspended for Etcd, cannot proceed")
+		return fmt.Errorf("reconciliation triggered, but is suspended for Etcd, cannot proceed")
 	}
 
-	if r.waitTillReady {
-		if err := r.waitForEtcdReady(ctx, etcd); err != nil {
+	if r.waitTillReady || r.watch {
+		if err := r.waitForEtcdReady(ctx, etcd, sm); err != nil {
 			return fmt.Errorf("error waiting for Etcd to be ready: %w", err)
 		}
 	}
@@ -121,38 +154,43 @@ func (r *reconcileCmdCtx) reconcileEtcdResource(ctx context.Context, etcd *druid
 	if err := r.etcdClient.UpdateEtcd(ctx, etcd, etcdModifier); err != nil {
 		return fmt.Errorf("unable to update etcd object '%s/%s': %w", etcd.Namespace, etcd.Name, err)
 	}
-	r.Logger.Info(r.IOStreams.Out, "Triggered reconciliation for etcd", etcd.Name, etcd.Namespace)
+	if r.Verbose {
+		r.Logger.Info(r.IOStreams.Out, "Triggered reconciliation for etcd", etcd.Name, etcd.Namespace)
+	}
 	return nil
 }
 
-func (r *reconcileCmdCtx) waitForEtcdReady(ctx context.Context, etcd *druidv1alpha1.Etcd) error {
-	r.Logger.Progress(r.IOStreams.Out, "Waiting for etcd to be ready...", etcd.Name, etcd.Namespace)
+func (r *reconcileCmdCtx) waitForEtcdReady(ctx context.Context, etcd *druidv1alpha1.Etcd, sm *statusManager) error {
+	if r.Verbose {
+		r.Logger.Progress(r.IOStreams.Out, "Waiting for etcd to be ready...", etcd.Name, etcd.Namespace)
+	}
 
 	// For the Etcd to be considered ready, the conditions in the conditions slice must all be set to true
 	conditions := []druidv1alpha1.ConditionType{
 		druidv1alpha1.ConditionTypeAllMembersUpdated,
 		druidv1alpha1.ConditionTypeAllMembersReady,
 	}
-	// use a checkTicker to periodically check the conditions
+
+	// use a progressTicker to periodically check & update the progress of the status conditions
 	progressTicker := time.NewTicker(10 * time.Second)
 	defer progressTicker.Stop()
-
-	checkTicker := time.NewTicker(3 * time.Second)
-	defer checkTicker.Stop()
 
 	for {
 		select {
 		case <-progressTicker.C:
-			// Check the progress
-			r.Logger.Progress(r.IOStreams.Out, "Still waiting for etcd to be ready...", etcd.Name, etcd.Namespace)
-		case <-checkTicker.C:
 			// Check if all conditions are met
-			ready, err := r.checkEtcdConditions(ctx, etcd, conditions)
+			ready, err := r.checkEtcdConditions(ctx, etcd, conditions, sm)
 			if err != nil {
-				r.Logger.Warning(r.IOStreams.Out, "Warning : failed checking conditions for Etcd", err.Error(), etcd.Name, etcd.Namespace)
+				if r.Verbose {
+					r.Logger.Warning(r.IOStreams.Out, "Warning : failed checking conditions for Etcd", err.Error(), etcd.Name, etcd.Namespace)
+				}
 			}
 			if ready {
-				r.Logger.Success(r.IOStreams.Out, "Etcd is now ready", etcd.Name, etcd.Namespace)
+				key := types.NamespacedName{Namespace: etcd.Namespace, Name: etcd.Name}
+				sm.setComplete(key)
+				if r.Verbose {
+					r.Logger.Success(r.IOStreams.Out, "Etcd is now ready", etcd.Name, etcd.Namespace)
+				}
 				return nil
 			}
 		case <-ctx.Done():
@@ -161,7 +199,7 @@ func (r *reconcileCmdCtx) waitForEtcdReady(ctx context.Context, etcd *druidv1alp
 	}
 }
 
-func (r *reconcileCmdCtx) checkEtcdConditions(ctx context.Context, etcd *druidv1alpha1.Etcd, conditions []druidv1alpha1.ConditionType) (bool, error) {
+func (r *reconcileCmdCtx) checkEtcdConditions(ctx context.Context, etcd *druidv1alpha1.Etcd, conditions []druidv1alpha1.ConditionType, sm *statusManager) (bool, error) {
 	latestEtcd, err := r.etcdClient.GetEtcd(ctx, etcd.Namespace, etcd.Name)
 	if err != nil {
 		return false, fmt.Errorf("failed to get latest Etcd: %w", err)
@@ -169,7 +207,12 @@ func (r *reconcileCmdCtx) checkEtcdConditions(ctx context.Context, etcd *druidv1
 
 	failingConditions := []druidv1alpha1.ConditionType{}
 	for _, condition := range conditions {
-		if !isEtcdConditionTrue(latestEtcd, condition) {
+		if isEtcdConditionTrue(latestEtcd, condition) {
+			if condition == druidv1alpha1.ConditionTypeAllMembersUpdated {
+				key := types.NamespacedName{Namespace: etcd.Namespace, Name: etcd.Name}
+				sm.setUpdated(key)
+			}
+		} else {
 			failingConditions = append(failingConditions, condition)
 		}
 	}

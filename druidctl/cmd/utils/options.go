@@ -19,7 +19,6 @@ type GlobalOptions struct {
 	// Common options
 	Verbose       bool
 	AllNamespaces bool
-	Namespace     string
 	ResourcesRef  string
 	DisableBanner bool
 
@@ -39,7 +38,6 @@ func NewOptions() *GlobalOptions {
 	configFlags := utils.GetConfigFlags()
 	factory := client.NewClientFactory(configFlags)
 	return &GlobalOptions{
-		Namespace:     namespace,
 		LogType:       log.LogTypeCharm,
 		ConfigFlags:   configFlags,
 		ClientFactory: factory,
@@ -67,19 +65,12 @@ func (o *GlobalOptions) Complete(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		o.ResourcesRef = args[0]
 	}
-	var err error
-	if o.Namespace, _, err = o.ConfigFlags.ToRawKubeConfigLoader().Namespace(); err != nil {
-		o.Logger.Error(o.IOStreams.ErrOut, "Failed to get namespace: ", err)
-	}
 	return nil
 }
 
 // Validate validates the GlobalOptions
 func (o *GlobalOptions) Validate() error {
 	if o.AllNamespaces {
-		if o.Namespace != "default" {
-			return fmt.Errorf("cannot specify --namespace/-n with --all-namespaces/-A")
-		}
 		if o.ResourcesRef != "" {
 			return fmt.Errorf("cannot specify a resource name with --all-namespaces/-A")
 		}

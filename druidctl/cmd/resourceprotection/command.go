@@ -9,18 +9,30 @@ import (
 
 var (
 	addProtectionExample = `
-		# Add component protection to an Etcd resource named "my-etcd" in the default namespace
-		druidctl add-component-protection my-etcd --namespace default
+		# Add component protection to an Etcd resource named "my-etcd" in the test namespace
+		druidctl add-component-protection 'test/my-etcd'
+
+		# Add component protection to all Etcd resources in the test namespace
+		druidctl add-component-protection 'test/*'
+		
+		# Add component protection to different Etcd resources in different namespaces
+		druidctl add-component-protection 'test/my-etcd,dev/my-etcd'
 		
 		# Add component protection to all Etcd resources in all namespaces
-		druidctl add-component-protection my-etcd --all-namespaces`
+		druidctl add-component-protection --all-namespaces`
 
 	removeProtectionExample = `
-		# Remove component protection from an Etcd resource named "my-etcd" in the default namespace
-		druidctl remove-component-protection my-etcd --namespace default
+		# Remove component protection from an Etcd resource named "my-etcd" in the test namespace
+		druidctl remove-component-protection 'test/my-etcd'
+
+		# Remove component protection from all Etcd resources in the test namespace
+		druidctl remove-component-protection 'test/*'
+		
+		# Remove component protection from different Etcd resources in different namespaces
+		druidctl remove-component-protection 'test/my-etcd,dev/my-etcd'
 		
 		# Remove component protection from all Etcd resources in all namespaces
-		druidctl remove-component-protection my-etcd --all-namespaces`
+		druidctl remove-component-protection --all-namespaces`
 )
 
 // Create add-component-protection subcommand
