@@ -13,7 +13,9 @@ reviewers:
 
 ## Summary
 
-This proposal recommends supporting the `OnDelete` update strategy to be used by etcd-druid to update the StatefulSet pods backing the Etcd cluster members. With `OnDelete`, the Kubernetes StatefulSet controller no longer automatically rollout the pods when the pod template changes. Instead, a new dedicated controller in etcd-druid takes responsibility for deleting and recreating pods in a carefully chosen order that accounts for etcd member health and cluster role. The goal is to prevent unintended quorum loss during spec updates to the Etcd cluster.
+Today, etcd-druid provisions etcd clusters as StatefulSets configured with the RollingUpdate update strategy. On a pod-template change, the StatefulSet controller rolls pods in a fixed highest-to-lowest ordinal order, with no awareness of etcd member health or role. When an existing member is already unhealthy, this ordering can cause an avoidable transient quorum loss during routine spec updates.
+
+This proposal introduces configuring the StatefulSet with the `OnDelete` update strategy provided by Kubernetes. Under OnDelete, the StatefulSet controller does not roll pods automatically on pod-template changes; instead, a new dedicated controller in etcd-druid deletes and recreates pods in an order that accounts for member health and cluster role. Voluntary updates - image bumps, configuration changes, resource changes - are then propagated under druid's control, with significantly reduced risk of unintended quorum loss in multi-node clusters.
 
 ## Terminology
 
@@ -22,14 +24,14 @@ This proposal recommends supporting the `OnDelete` update strategy to be used by
 - **Quorum**: The minimum number of etcd members that must agree on a value for the cluster to make progress. For a 3-member cluster, quorum is 2.
 - **Leader**: The etcd member responsible for handling client write requests and coordinating replication.
 - **Follower**: An etcd member that replicates data from the leader and can serve linearizable reads.
-- **Participating pod**: A pod whose etcd container is part of the quorum (the member is either a leader or a follower).
-- **Non-participating pod**: A pod whose etcd container is not part of the quorum (the member may be down, restarting, or not yet joined).
+- **Participating pod**: A pod whose etcd container is currently serving as a leader or follower in the cluster's quorum (i.e., it passes its readiness probe).
+- **Non-participating pod**: A pod whose etcd member is not currently contributing to quorum, regardless of cause (process down, member not yet joined, network-partitioned etc.).
 
 ## Motivation
 
 Currently etcd-druid deploys etcd clusters as StatefulSets with `RollingUpdate` strategy. The StatefulSet controller rolls pods from the highest ordinal to the lowest, without considering the health or role of individual etcd members. This creates a risk of unintended quorum loss.
 
-Consider a 3-member etcd cluster with pods `P-0`, `P-1`, and `P-2`. If `P-0` becomes unhealthy (due to network issues, node failure, or an internal error), the cluster still has quorum with `P-1` and `P-2`. Now, if a StatefulSet template update is triggered (for example, an image version bump), the StatefulSet controller starts rolling from `P-2`. It deletes `P-2` and waits for it to come back. During this window, only `P-1` is healthy and participating, which is below quorum (2 out of 3). The cluster experiences a transient quorum loss that could have been entirely avoided if the update had started with the already-unhealthy `P-0` instead.
+Consider a 3-member cluster with pods P-0, P-1, and P-2. Suppose P-0 is currently unhealthy — it could be partitioned from the network, on a failing node, or hitting an internal etcd error — while P-1 and P-2 are healthy and form a quorum. An operator now triggers a routine spec update, e.g. an image bump. The StatefulSet controller starts at the highest ordinal, deletes P-2, and waits for it to come back ready before proceeding. During that window only P-1 is participating; with 1 of 3 members up, the cluster has lost quorum and stalls writes until P-2 returns. The same outcome repeats when P-1 is rolled next. The unhealthy P-0 — the pod whose deletion would have been safe, since it wasn't contributing anyway — is rolled last, by which time the avoidable downtime has already been incurred.
 
 The following diagram illustrates how the `RollingUpdate` strategy can lead to quorum loss in this scenario:
 
@@ -39,8 +41,13 @@ The following diagram illustrates how the `RollingUpdate` strategy can lead to q
 
 The StatefulSet controller starts from Pod N (the highest ordinal), terminates it, and waits for the new pod to become ready. If the terminated pod is not the originally unhealthy one, cluster goes into a transient quorum loss with 2 members down.
 
-For a single-node etcd cluster, both `RollingUpdate` and `OnDelete` produce the same outcome since there is only one pod to update. The benefit of `OnDelete` is specific to multi-node clusters where update ordering matters.
+Moving the pod update process under druid's control, via the `OnDelete` strategy, addresses three concerns:
 
+1. **Reduce transient quorum loss.** Select outdated pods for deletion based on member health, so it doesn't prematurely remove a healthy member while an unhealthy one waits its turn in the sequence.
+2. **Reduce unnecessary leader elections.** Update followers before the leader, so the leader-election does not happen as frequently during a rollout.
+3. **Enable safer in-place volume changes.** A safer PVC resize procedure benefits from controlled replacement of pods, which is what `OnDelete` provides. The resize flow itself is out of scope for this DEP and is covered separately (see [Interaction with PVC Resizing](#interaction-with-pvc-resizing)).
+
+For a single-node etcd cluster, concerns 1 and 2 do not apply — there is no quorum to preserve and no leader-election to avoid.
 ### Goals
 
 - Prevent unintended quorum loss during voluntary pod updates by replacing the default StatefulSet rolling order with a druid-controlled, health-aware order.
@@ -48,7 +55,7 @@ For a single-node etcd cluster, both `RollingUpdate` and `OnDelete` produce the 
 ### Non-Goals
 
 - This proposal does not claim to prevent all forms of quorum loss. It reduces the likelihood of quorum loss caused by poorly-ordered voluntary pod updates.
-- This proposal does not cover PVC resizing or volume replacement. The OnDelete strategy makes PVC resizing safer (see [Interaction with PVC Resizing](#interaction-with-pvc-resizing)), but the PVC resize flow itself is a separate feature.
+- This proposal does not cover the PVC resizing or volume replacement flow itself. `OnDelete` is recommended for a safe resize procedure, but the resize flow is covered in a separate proposal (see [Interaction with PVC Resizing](#interaction-with-pvc-resizing)).
 - Optimizing the update process for clusters with more than 3 replicas (updating multiple pods concurrently while maintaining quorum) is left as future work.
 
 ## Proposal
@@ -81,9 +88,9 @@ A new controller, separate from the existing Etcd reconciler, is responsible for
 
 **Why a separate controller instead of extending the StatefulSet component:**
 
-The OnDelete pod update process could be folded into the existing Etcd reconciliation loop (for example, by extending the StatefulSet component's `Sync`). We chose a separate controller for two reasons:
+The OnDelete pod update process could be folded into the existing Etcd reconciliation loop by extending the StatefulSet component. We chose a separate controller for two reasons:
 
-- **Preserves the Etcd reconciler's current role.** The reconciler today writes the desired state of the cluster's Kubernetes resources (StatefulSet, ConfigMap, Services, Leases, etc.) and relies on each resource's controller to act on it. It does not select, delete, or wait on individual pods. Adding the OnDelete update logic to the reconciler would extend its responsibilities into pod-lifecycle management for the first time; a separate controller keeps that boundary intact and lets the OnDelete logic evolve independently of the rest of the reconciliation pipeline.
+- **Preserves the Etcd reconciler's current role.** The reconciler today writes the desired state of the cluster's Kubernetes resources (StatefulSet, ConfigMap, Services, Leases, etc.) and relies on each resource's controller to act on it. It does not act on the individual pods. Adding the OnDelete update logic to the reconciler would extend its responsibilities into pod-lifecycle management for the first time; a separate controller keeps that boundary intact and lets the OnDelete logic evolve independently of the rest of the reconciliation pipeline.
 - **Mirrors how `RollingUpdate` is managed today.** Under `RollingUpdate`, the Etcd reconciler writes the StatefulSet spec and the Kubernetes StatefulSet controller takes that spec and updates pods accordingly. Under `OnDelete`, the StatefulSet controller steps back from pod updates and a dedicated controller in etcd-druid takes on that role instead. The split — one component computes the desired StatefulSet spec, another manages the pods that realise it — is the same pattern; only the second half moves into etcd-druid.
 
 **Coordination with the Etcd reconciler.**
@@ -241,7 +248,9 @@ Since VPA does not modify the StatefulSet pod template, it does not trigger a ne
 
 ### Interaction with PVC Resizing
 
-The PVC resizing story ([etcd-druid#481](https://github.com/gardener/etcd-druid/issues/481)) and the OnDelete controller are independent features. The OnDelete controller detects outdated pods by comparing `controller-revision-hash` labels, which are computed from the pod template spec only and do not include `volumeClaimTemplates`. A change to `storageCapacity` or `storageClass` alone will not trigger the OnDelete controller. The PVC resize flow will be covered in a separate proposal and will handle pod deletion through its own mechanism.
+The PVC resizing story ([etcd-druid#481](https://github.com/gardener/etcd-druid/issues/481)) is a beneficiary of the `OnDelete` strategy: a safe per-pod resize procedure requires replacing pods one-by-one in a controlled, health-aware order, which is exactly what `OnDelete` provides. The resize flow itself is out of scope for this DEP and will be covered in a separate proposal.
+
+The OnDelete controller's own detection of outdated pods is based on the `controller-revision-hash` label, which is computed from the pod template spec only and does not include `volumeClaimTemplates`. A change to `storageCapacity` or `storageClass` alone will therefore not trigger the OnDelete controller; the PVC resize flow will handle pod replacement through its own mechanism.
 
 ### Metrics
 
