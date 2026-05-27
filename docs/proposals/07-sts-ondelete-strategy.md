@@ -43,9 +43,7 @@ For a single-node etcd cluster, both `RollingUpdate` and `OnDelete` produce the 
 
 ### Goals
 
-- Prevent unintended quorum loss caused by the StatefulSet controller updating pods in an order that does not consider cluster health.
-- Introduce a spec field on the Etcd custom resource that allows operators to choose between `RollingUpdate` and `OnDelete` strategies per cluster.
-- Ensure that updates triggered by changes to the StatefulSet pod template (image versions, configuration, resource requests) are propagated to pods under druid's control.
+- Prevent unintended quorum loss during voluntary pod updates by replacing the default StatefulSet rolling order with a druid-controlled, health-aware order.
 
 ### Non-Goals
 
@@ -55,46 +53,27 @@ For a single-node etcd cluster, both `RollingUpdate` and `OnDelete` produce the 
 
 ## Proposal
 
-### Update Strategy as an Etcd Spec Field
+### Feature Gate
 
-The update strategy will be exposed as a field on the Etcd custom resource:
+The OnDelete behaviour is opt-in via a new feature gate, `UpdateStrategyOnDelete`, declared alongside the existing gates in `api/config/v1alpha1/features.go`. Operators enable it by setting it in the `featureGates` map of the operator configuration:
 
 ```yaml
-apiVersion: druid.gardener.cloud/v1alpha1
-kind: Etcd
-spec:
-  updateStrategy: RollingUpdate  # or OnDelete
+# OperatorConfiguration
+featureGates:
+  UpdateStrategyOnDelete: true
 ```
 
-- **Default value**: `RollingUpdate`
-- **Valid values**: `OnDelete`, `RollingUpdate`
+- **Maturity:** Alpha
+- **Default:** `false`
+- **Scope:** Operator-wide. The gate applies to every etcd cluster managed by that etcd-druid instance; there is no per-cluster override.
+- **Effect when enabled:** The Etcd reconciler sets `spec.updateStrategy.type = OnDelete` on every managed StatefulSet, and the OnDelete controller (described below) takes over pod updates.
+- **Effect when disabled:** The Etcd reconciler sets `spec.updateStrategy.type = RollingUpdate` on the StatefulSet, preserving the current behaviour. The OnDelete controller's predicate does not match, so it stays inert.
 
-The default is set to `RollingUpdate` to preserve the existing behaviour for current clusters; `OnDelete` is opt-in initially so it can be exercised on selected clusters. Once `OnDelete` has been validated for few releases, the default will switch to `OnDelete` in a subsequent release. Both strategies remain valid indefinitely.
+**Why a feature gate.**
 
-**API type definition:**
+The choice of StatefulSet update strategy is an internal implementation detail of how etcd-druid realises an etcd cluster on top of Kubernetes primitives. The user's contract is the `Etcd` resource — they should not need to know that a StatefulSet is involved at all, let alone which of its update strategies is in effect. Exposing the choice as a spec field on `Etcd` would leak that implementation detail into a stable API surface and foreclose the option to evolve away from StatefulSets later without an awkward API deprecation.
 
-```go
-// UpdateStrategyType defines the type of update strategy for the StatefulSet.
-// +kubebuilder:validation:Enum=RollingUpdate;OnDelete
-type UpdateStrategyType string
-
-const (
-    UpdateStrategyTypeRollingUpdate UpdateStrategyType = "RollingUpdate"
-    UpdateStrategyTypeOnDelete      UpdateStrategyType = "OnDelete"
-)
-
-type EtcdSpec struct {
-    // ...existing fields...
-
-    // UpdateStrategy defines the update strategy to be used for the StatefulSet backing the Etcd cluster.
-    // +optional
-    UpdateStrategy *UpdateStrategyType `json:"updateStrategy,omitempty"`
-}
-```
-
-This is a per-cluster choice. Operators can set different strategies for different Etcd clusters. Changing the field on a live cluster is supported and triggers a seamless transition (see [Transitioning Between Strategies](#transitioning-between-strategies)).
-
-A spec field is preferred over a feature gate for this choice because the decision between `RollingUpdate` and `OnDelete` is intended to remain a per-cluster, long-lived setting rather than a global, transitional one. A feature gate would graduate and eventually disappear, forcing every cluster onto the new default; a spec field lets each cluster opt in or out by editing the Etcd resource, without an operator restart or coordinated migration.
+A feature gate is the right mechanism for an operator-controlled toggle that is purely operational: it gives the operator a single switch to enable the new behaviour at a time of their choosing, and — critically — a safe rollback path if a regression is observed in production. Disabling the gate (or downgrading to a version that pre-dates it) restores the pre-OnDelete behaviour without any per-cluster cleanup. Once the feature is exercised long enough to be considered stable, the gate will be graduated through beta to GA and eventually locked to `true`, at which point no per-operator knob remains to maintain.
 
 ### The OnDelete Controller
 
@@ -113,7 +92,7 @@ The Etcd reconciler writes the StatefulSet spec; the OnDelete controller only de
 
 The OnDelete controller is stateless: i.e every reconciliation re-reads the current StatefulSet's `.status.updateRevision` and the current pod set. If the Etcd reconciler pushes a new pod template while OnDelete is mid-rollout of a prior revision, the next reconciliation observes the new `updateRevision`, treats every pod whose `controller-revision-hash` no longer matches as outdated (including ones already updated against the prior revision), and continues the procedure from there. No explicit handover between controllers is needed.
 
-The strategy switch itself is coordinated by sequencing: when `spec.updateStrategy` changes on the Etcd CR, the StatefulSet component updates the StatefulSet's `spec.updateStrategy` first, and the OnDelete controller's predicate (`spec.updateStrategy.type == OnDelete`) ensures it engages only when the StatefulSet is in the matching mode. The Kubernetes StatefulSet controller and the OnDelete controller therefore never act on pod updates concurrently.
+When the feature gate's effective state changes — either at runtime (operator config update + restart) or as a result of a druid version upgrade/downgrade — the Etcd reconciler updates the StatefulSet's `spec.updateStrategy.type` first; the OnDelete controller's predicate (`spec.updateStrategy.type == OnDelete`) then engages or disengages accordingly. The Kubernetes StatefulSet controller and the OnDelete controller therefore never act on pod updates concurrently. See [Transitioning Between Strategies](#transitioning-between-strategies) for the full handover behaviour.
 
 **Controller predicate:** The controller only reconciles StatefulSets whose `spec.updateStrategy.type` is set to `OnDelete`. This means the controller is always registered in the controller manager but has zero overhead for clusters using `RollingUpdate`.
 
@@ -228,25 +207,28 @@ To support both pre-fix and post-fix Kubernetes versions, the OnDelete controlle
 
 ### Transitioning Between Strategies
 
-Transitioning between `RollingUpdate` and `OnDelete` is seamless and requires no manual intervention beyond changing the `spec.updateStrategy` field on the Etcd custom resource.
+The Etcd reconciler is the single owner of `StatefulSet.spec.updateStrategy.type`. On every reconciliation it sets this field based on the current state of the `UpdateStrategyOnDelete` feature gate: enabled → `OnDelete`, disabled → `RollingUpdate`. This invariant means that whenever the gate's effective state changes, the StatefulSet's strategy follows on the next reconciliation, and no manual intervention is required to keep the two in sync.
 
-**Switching from RollingUpdate to OnDelete:**
+The gate's effective state can change in two ways:
 
-1. The operator sets `spec.updateStrategy: OnDelete` on the Etcd CR.
-2. On the next Etcd reconciliation, the StatefulSet component updates the StatefulSet's `spec.updateStrategy` to `OnDelete`.
-3. The OnDelete controller's predicate now matches this StatefulSet. If there are any outdated pods (from a previously in-progress RollingUpdate or from a new template change), the OnDelete controller picks up the work and starts updating pods in its health-aware order.
-4. If no pods are outdated, the OnDelete controller simply watches for future StatefulSet template changes.
+1. **Feature gate toggled at runtime.** The operator updates the gate value in `OperatorConfiguration.FeatureGates` and restarts the etcd-druid pod so the new value is loaded.
+2. **Druid version upgrade or downgrade.** Upgrading to a version that introduces the gate (with the gate enabled) flips the effective state to `OnDelete`. Downgrading to a version that pre-dates the gate is equivalent to disabling it, because the older Etcd reconciler has no awareness of the gate and will unconditionally set `RollingUpdate`.
 
-Both controllers identify the same set of outdated pods via the `controller-revision-hash` label, so pods that the StatefulSet controller had already updated under `RollingUpdate` are not re-deleted by the OnDelete controller - only the remaining un-updated pods are processed. If the previous `RollingUpdate` had stalled waiting for a pod to come back, the OnDelete controller waits for the same pod; the wait behaviour is unchanged, only the selection order for subsequent pods differs.
+**Switch from `RollingUpdate` to `OnDelete`.**
 
-**Switching from OnDelete to RollingUpdate:**
+1. On the next Etcd reconciliation, the StatefulSet component sets `spec.updateStrategy.type` to `OnDelete`. The Kubernetes StatefulSet controller stops auto-rolling pods.
+2. The OnDelete controller's predicate now matches the StatefulSet and engages. If a `RollingUpdate` was in flight (some pods at the new revision, some not), the OnDelete controller observes the same `controller-revision-hash` labels and continues from where the previous controller left off, in health-aware order. Pods already updated by the StatefulSet controller are not re-deleted.
+3. If no pods are outdated, the OnDelete controller simply watches for future template changes.
+4. If the previous `RollingUpdate` had stalled waiting for a pod to come back, the OnDelete controller waits for the same pod; the wait behaviour is unchanged, only the selection order for subsequent pods differs.
 
-1. The operator sets `spec.updateStrategy: RollingUpdate` on the Etcd CR.
-2. On the next Etcd reconciliation, the StatefulSet component updates the StatefulSet's `spec.updateStrategy` to `RollingUpdate`.
-3. The OnDelete controller's predicate no longer matches this StatefulSet. The Kubernetes StatefulSet controller resumes managing pod updates in its default ordinal order.
-4. If there were outdated pods that the OnDelete controller had not yet processed, the StatefulSet controller picks them up and rolls them in the standard highest-to-lowest ordinal order.
+**Switch from `OnDelete` to `RollingUpdate`.**
 
-Because the Kubernetes StatefulSet controller also consults `controller-revision-hash` and `.status.updateRevision` to decide which pods to roll, pods already updated by the OnDelete controller are not re-rolled - the StatefulSet controller only processes the remaining outdated ones.
+1. On the next Etcd reconciliation, the StatefulSet component sets `spec.updateStrategy.type` to `RollingUpdate`. The OnDelete controller's predicate no longer matches; it disengages.
+2. The Kubernetes StatefulSet controller resumes pod updates in ordinal order. Because it also consults `controller-revision-hash` and `.status.updateRevision`, pods already updated by the OnDelete controller are not re-rolled — only the remaining outdated ones are processed.
+
+Both switches are inherently safe because they touch only the StatefulSet's `spec.updateStrategy.type` field; no pod is deleted as part of the switch itself. A pod whose deletion is in flight when the switch happens completes its lifecycle normally and is replaced; the new strategy applies to subsequent pods.
+
+**Note on version downgrade.** Downgrading to a version of etcd-druid that pre-dates this DEP is functionally identical to disabling the gate (the second switch above), since the older reconciler will set `RollingUpdate` on its next reconciliation. Any OnDelete rollout in progress at the time of the downgrade continues under Kubernetes StatefulSet control afterwards, with no loss of progress.
 
 ### VPA Interaction
 
