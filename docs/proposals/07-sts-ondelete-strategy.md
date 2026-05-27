@@ -81,10 +81,10 @@ A new controller, separate from the existing Etcd reconciler, is responsible for
 
 **Why a separate controller instead of extending the StatefulSet component:**
 
-The StatefulSet component can potentially do the update via the existing Etcd reconciliation loop. We choose a separate controller because:
+The OnDelete pod update process could be folded into the existing Etcd reconciliation loop (for example, by extending the StatefulSet component's `Sync`). We chose a separate controller for two reasons:
 
-- **Pod-by-pod waits do not block the reconciler.** A full update can span many reconciliation cycles, since each pod must come back and rejoin the quorum before the next one is touched. A separate controller progresses asynchronously and does not tie up a reconciler thread per cluster for the duration of an update, which is unnecessary and could lead to scalability issues if many clusters are updating simultaneously.
-- **Separation of concerns.** The Etcd reconciler ensures the StatefulSet spec matches the desired state among other things; the OnDelete controller propagates that spec to existing pods in a health-aware order. Keeping these in separate controllers makes each loop simpler to reason about.
+- **Preserves the Etcd reconciler's current role.** The reconciler today writes the desired state of the cluster's Kubernetes resources (StatefulSet, ConfigMap, Services, Leases, etc.) and relies on each resource's controller to act on it. It does not select, delete, or wait on individual pods. Adding the OnDelete update logic to the reconciler would extend its responsibilities into pod-lifecycle management for the first time; a separate controller keeps that boundary intact and lets the OnDelete logic evolve independently of the rest of the reconciliation pipeline.
+- **Mirrors how `RollingUpdate` is managed today.** Under `RollingUpdate`, the Etcd reconciler writes the StatefulSet spec and the Kubernetes StatefulSet controller takes that spec and updates pods accordingly. Under `OnDelete`, the StatefulSet controller steps back from pod updates and a dedicated controller in etcd-druid takes on that role instead. The split — one component computes the desired StatefulSet spec, another manages the pods that realise it — is the same pattern; only the second half moves into etcd-druid.
 
 **Coordination with the Etcd reconciler.**
 
